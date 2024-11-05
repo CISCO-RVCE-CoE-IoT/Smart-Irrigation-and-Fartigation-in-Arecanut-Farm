@@ -87,8 +87,8 @@ const Sections = () => {
             const newSections = [...prevState];
             newSections[index].isCounting = false;
             newSections[index].isOnDisabled = false;
-            newSections[index].inputTime = ''; // Clear the input when "Off" is clicked
-            newSections[index].timer = 0; // Reset timer
+            newSections[index].inputTime = '';  
+            newSections[index].timer = 0;  
             return newSections;
         });
     };
@@ -107,7 +107,7 @@ const Sections = () => {
                             <tr>
                                 <th scope="col">Section</th>
                                 <th scope="col">Moisture</th>
-                                <th scope="col">Valve Status</th>
+                                <th scope="col">Status</th>
                                 <th scope="col">Controls</th>
                             </tr>
                         </thead>
@@ -159,7 +159,7 @@ const Sections = () => {
                                                             onClick={() => handleSaveChanges(index)}
                                                             disabled={!section.inputTime} // Disable if no input
                                                         >
-                                                            Save Changes
+                                                            Save
                                                         </button>
                                                     </div>
                                                     {section.isCounting && (

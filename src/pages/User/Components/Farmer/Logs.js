@@ -5,8 +5,7 @@ const Logs = ({logs}) => {
         <div>
             <div className='borderring'>
                 <div className='mb-3'> 
-                <button type='button' className='btn btn-outline-secondary btn-sm me-2'>Farm Logs</button>
-                <button type='button' className='btn btn-outline-secondary btn-sm'>Section Logs</button>
+                    <h6 className='text-secondary'>Farm logs</h6>
                 </div>
 
 

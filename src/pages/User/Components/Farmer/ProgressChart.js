@@ -64,7 +64,7 @@ const ProgressChart = ({ value, name,unit }) => {
                 <div style={{ fontSize: '1.05em', fontWeight: 'bold', marginTop: '16px' }}>{value} 
                     <span style={{fontSize:'0.75rem'}} className='text-secondary'> {unit}</span>
                 </div>
-                <div style={{ fontSize: '0.8em', color: '#555' }}>{name}</div>
+                <div style={{ fontSize: '0.8em', color: '#555' }} className='m-0'>{name}</div>
             </div>
         </div>
     );
