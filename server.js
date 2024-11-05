@@ -298,7 +298,7 @@ app.get('/farmer/farm/:farm_id', async (req, res) => {
     }
 });
 
-app.put('/farmer/farm/:farm_id',async(req,res) => {
+app.put('/farmer/farm/farm_name/:farm_id',async(req,res) => {
     try {
         const {farm_id} = req.params;
         const { farmer_id, farm_name} =req.body;
@@ -315,13 +315,38 @@ app.put('/farmer/farm/:farm_id',async(req,res) => {
             return res.status(404).send({ error: "No Farm found for the provided ID for this farmer" });
         }
     
-        return res.status(200).send({ message: "Farmer updated successfully", farm_updated_name: farm_updated_name.rows[0] });
+        return res.status(200).send({ message: "Farm name updated successfully", farm_updated_name: farm_updated_name.rows[0] });
     } catch (error) {
         console.error(error);
-        res.status(500).send({ error: "An error occurred while updating the farmer" });
+        res.status(500).send({ error: "An error occurred while updating the farm name" });
     }
 
 
+
+});
+
+app.post('/farmer/farm/valve/:valve_id',async(req,res) => {
+    try {
+        const {valve_id} = req.params;
+        const { mode, status, timer } = req.body;
+
+        if (mode === 'manual' && status === 'on' && (typeof timer === 'undefined' || timer === null)) {
+            return res.status(400).send({ error: 'Timer is required when Manual On' });
+        }
+
+        const valveInsertQuery='INSERT INTO valve_data( section_device_id, valve_mode, valve_status, manual_off_timer) VALUES ($1,$2,$3,$4) RETURNING valve_mode,valve_status, timestamp'
+    
+        const valve_data = await pool.query(valveInsertQuery, [valve_id, mode,status,timer]);
+    
+        if (valve_data.rowCount === 0) {
+            return res.status(404).send({ error: "No valve found for the provided ID" });
+        }
+    
+        return res.status(200).send({ message: "inserted value data successfully", valve_data: valve_data.rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "An error occurred while inserting value data" });
+    }
 
 });
 
