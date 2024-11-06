@@ -1,7 +1,7 @@
 import React from 'react';
 import farmer from "../Images/farmer.jpg";
 
-const Farmer = ({ username, userID,fields }) => {
+const Farmer = ({farmer_Details}) => {
     const imageStyle = {
         width: "5rem",
         height: "5rem",
@@ -9,6 +9,10 @@ const Farmer = ({ username, userID,fields }) => {
         borderRadius: "12%",
     };
 
+    function upperCase(name) {
+        return name.toUpperCase().slice(0, 1) + name.slice(1).toLowerCase();
+    }
+    
     const imgInnerStyle = {
         width: "100%",
         height: "100%",
@@ -27,14 +31,15 @@ const Farmer = ({ username, userID,fields }) => {
                 />
             </div>
             <div className="mx-3 d-flex flex-column">
-                <h4 className="fw-bold" aria-label="Farmer Name">
-                    {username}
+                <h4 className="fw-bold" >
+                {upperCase(farmer_Details[0].farmer_fname)}
+                        
                 </h4>
-                <small className="text-secondary" aria-label="Farmer ID">
-                    Id : {userID}
+                <small className="text-secondary" >
+                    Id : U2024{farmer_Details[0].farmer_id}
                 </small>
                 <small>
-                    Total Fields : <strong className='fs-5 px-1'>{fields}</strong>
+                    Total Fields : <strong className='fs-5 px-1'>{farmer_Details[1]}</strong>
                 </small>
                 
             </div>
