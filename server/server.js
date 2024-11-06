@@ -1,10 +1,13 @@
 const express = require('express');
 const pool = require('./database');
+const cors = require('cors'); 
 
 const port = 5500;
 const app = express();
 
-app.get('/user/:id', async (req, res) => {
+app.use(cors());
+
+app.get('/farmer/:id', async (req, res) => {
     const { id } = req.params;
     try {
         const farmer_details = await pool.query(
@@ -34,9 +37,9 @@ app.get('/user/:id', async (req, res) => {
         )
         res.status(200).send(
             {
-                farmer_details:farmer_details.rows,
-                farm_details:farm_details.rows,
-                total_farm_count:total_farm_count.rows[0].total_count
+                farmer_details: farmer_details.rows,
+                farm_details: farm_details.rows,
+                total_farm_count: total_farm_count.rows[0].total_count
             }
         );
     } catch (error) {
@@ -44,5 +47,12 @@ app.get('/user/:id', async (req, res) => {
         res.status(500).send({ error: "Error while fetching" });
     }
 });
+
+// app.get('/farmer/:id/:farmid', async(req,res) =>{
+//     const {farmid} = req.params;
+//     try{
+
+//     }
+// })
 
 app.listen(port, () => console.log(`Server started on port: ${port}`));

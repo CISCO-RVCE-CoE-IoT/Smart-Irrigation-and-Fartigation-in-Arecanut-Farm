@@ -9,9 +9,10 @@ import mist from './WeatherImages/mist.png';
 const apikey = "8925502a781648f4443f9e01d96c7ff5";
 const apiURL = "https://api.openweathermap.org/data/2.5/weather?units=metric&lat=";
 
-const Farms = ({ fields }) => {
+const Farms = ({ farmDetails, farmerid }) => {
     const scrollerRef = useRef();
     const [weatherData, setWeatherData] = useState([]);
+    const [selectedFarm, setSelectedFarm] = useState(null);
 
     useEffect(() => {
         const handleScroll = (event) => {
@@ -39,25 +40,50 @@ const Farms = ({ fields }) => {
             window.alert("Enter Valid Coordinates");
         } else {
             const data = await response.json();
-            return data; // Return the fetched data
+            return data;
         }
     };
 
     useEffect(() => {
         const fetchWeatherData = async () => {
-            const weatherPromises = fields.map(async (field) => {
-                const { coordinates } = field;
-                const weather = await checkWeather(coordinates[0], coordinates[1]);
-                return { ...field, weather }; // Combine field data with weather data
+            const weatherPromises = farmDetails.map(async (farm) => {
+                const firstCoordinate = farm.farm_location_cordinates[0];
+                if (firstCoordinate) {
+                    const [latitude, longitude] = firstCoordinate.split(',').map(coord => parseFloat(coord.trim()));
+                    const weather = await checkWeather(latitude, longitude);
+                    return { ...farm, weather };
+                }
+                return { ...farm, weather: null };
             });
             const results = await Promise.all(weatherPromises);
-            setWeatherData(results); // Set the combined data in state
-        };
+            setWeatherData(results);
 
-        if (fields.length > 0) {
+            if (farmDetails.length > 0) {
+                const firstFarm = farmDetails[0];
+                requestFarmDetails(farmerid, firstFarm.id);
+            }
+        };
+    
+        if (farmDetails.length > 0) {
             fetchWeatherData();
         }
-    }, [fields]);
+    }, [farmDetails, farmerid]);
+
+    const requestFarmDetails = async (farmerid, farmid) => {
+        try {
+            const response = await fetch(`http://localhost:5500/farmer/${farmerid}/${farmid}`);
+            if (!response.ok) throw new Error('Failed to fetch farm details');
+            const farmData = await response.json();
+            setSelectedFarm(farmData);
+            console.log("First farm details:", farmData);
+        } catch (error) {
+            console.error("Error fetching first farm details:", error);
+        }
+    };
+
+    function upperCase(name) {
+        return name.toUpperCase().slice(0, 1) + name.slice(1).toLowerCase();
+    }
 
     return (
         <div id="fields">
@@ -68,63 +94,54 @@ const Farms = ({ fields }) => {
                     ref={scrollerRef}
                     style={{ overflowX: 'auto', whiteSpace: 'nowrap' }}
                 >
-                    {weatherData.map((field, index) => (
-                       <div
-                       className="farms farm-bordering d-flex align-items-center justify-content-between bg-dark"
-                       key={index}
-                       style={{
-                           display: 'inline-block',
-                           marginRight: '10px',
-                           color: 'black',
-                           padding: '6px 14px',
-                           borderRadius: '5px',
-                           background: "linear-gradient(to right, #f1f1f1 5%, #9bddf7)" // Gradient background
-                       }}
-                   >
-                   
-                            <div className=''>
-                                <h5 className="fw-bold">{field.name}</h5>
-                                <span className="fw-bold text-dark">
-                                    {field.status}
-                                    {field.status === "Active" && (
-                                        <div
-                                            className="spinner-grow text-success ms-2"
-                                            role="status"
-                                            style={{ width: "0.75rem", height: "0.75rem" }}
-                                        >
-                                            <span className="visually-hidden">Loading...</span>
-                                        </div>
-                                    )}
-                                    
-                                </span>
-                                <br />
-                                <small className='text-center'>{field.weather.name}</small>
-                                <br />
-                                <small className="text-secondary">{field.dimensions}</small>
-                            </div>
+                    {weatherData && weatherData.length > 0 ? (
+                        weatherData.map((farm, index) => (
+                            <div
+                                className="farms farm-bordering d-flex align-items-center justify-content-between bg-dark"
+                                key={index}
+                                style={{
+                                    display: 'inline-block',
+                                    marginRight: '10px',
+                                    color: 'black',
+                                    padding: '6px 14px',
+                                    borderRadius: '5px',
+                                    background: "linear-gradient(to right, #f1f1f1 5%, #9bddf7)"
+                                }}
+                            >
+                                <div className=''>
+                                    <h5 className="fw-bold">{upperCase(farm.farm_name)}</h5>
+                                    <span className="text-dark fs-6">Active</span>
+                                    <br />
+                                    <small className='text-center'>{farm.weather ? upperCase(farm.weather.name) : "Loading..."}</small>
+                                    <br />
+                                    <small className="text-secondary">{farm.farm_size} ha</small>
+                                </div>
 
-                            <div className='ps-4'>
-                                {field.weather && (
-                                    <>
-                                        <img
-                                            src={
-                                                field.weather.weather[0].main === "Clouds" ? clouds :
-                                                    field.weather.weather[0].main === "Clear" ? clear :
-                                                        field.weather.weather[0].main === "Rain" ? rain :
-                                                            field.weather.weather[0].main === "Drizzle" ? drizzle :
-                                                                field.weather.weather[0].main === "Mist" || "Haze" ? mist :
-                                                                    ''
-                                            }
-                                            width={80}
-                                            alt="Weather Icon"
-                                        />
-                                        <br />
-                                        <h6 className='text-center text-secondary'>{field.weather.weather[0].main} Sky</h6>
-                                    </>
-                                )}
+                                <div className='ps-4'>
+                                    {farm.weather && (
+                                        <>
+                                            <img
+                                                src={
+                                                    farm.weather.weather[0].main === "Clouds" ? clouds :
+                                                    farm.weather.weather[0].main === "Clear" ? clear :
+                                                    farm.weather.weather[0].main === "Rain" ? rain :
+                                                    farm.weather.weather[0].main === "Drizzle" ? drizzle :
+                                                    (farm.weather.weather[0].main === "Mist" || farm.weather.weather[0].main === "Haze") ? mist :
+                                                    ''
+                                                }
+                                                width={80}
+                                                alt="Weather Icon"
+                                            />
+                                            <br />
+                                            <h6 className='text-center text-secondary'>{farm.weather.weather[0].main} Sky</h6>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))
+                    ) : (
+                        <p>Loading farms...</p>
+                    )}
                 </div>
             </div>
         </div>
