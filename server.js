@@ -296,7 +296,7 @@ app.get('/farmer/farm/:farm_id', async (req, res) => {
         console.error(error);
         res.status(500).send({ error: "An error occurred while fetching farmer details" });
     }
-});
+});                                                                     
 
 app.put('/farmer/farm/farm_name/:farm_id',async(req,res) => {
     try {
@@ -328,10 +328,10 @@ app.put('/farmer/farm/farm_name/:farm_id',async(req,res) => {
 app.post('/farmer/farm/valve/:valve_id',async(req,res) => {
     try {
         const {valve_id} = req.params;
-        const { mode, status, timer } = req.body;
+        const { mode, status, timer=0 } = req.body;
 
-        if (mode === 'manual' && status === 'on' && (typeof timer === 'undefined' || timer === null)) {
-            return res.status(400).send({ error: 'Timer is required when Manual On' });
+        if (!mode || !status) {
+            return res.status(400).send({ error: 'mode and status are required' });
         }
 
         const valveInsertQuery='INSERT INTO valve_data( section_device_id, valve_mode, valve_status, manual_off_timer) VALUES ($1,$2,$3,$4) RETURNING valve_mode,valve_status, timestamp'
