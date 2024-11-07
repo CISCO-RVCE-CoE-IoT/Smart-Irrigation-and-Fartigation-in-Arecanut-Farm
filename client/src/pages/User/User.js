@@ -22,7 +22,7 @@ const User = () => {
     setLoading(true);
     setError(null);
 
-    fetch(`/farmer/${id}`)
+    fetch(`/f/${id}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Network response was not ok");
@@ -32,6 +32,8 @@ const User = () => {
       .then((data) => {
         setRec(data);
         setLoading(false);
+        console.log(data);
+
       })
       .catch((error) => {
         console.error("Error fetching user data:", error);
@@ -55,20 +57,42 @@ const User = () => {
   }
 
   const farmerDetails = rec?.farmer_details;
-  const farmerDetail = farmerDetails?.[0];
   const total_count = rec?.total_farm_count;
 
-  const farmer_Details = [farmerDetail, total_count];
-  const farms = rec?.farm_details;
+  const user_details = [farmerDetails, total_count];
 
-  const gauges = [
-    { value: 97, name: "Nitrogen" },
-    { value: 57, name: "Phosphorus" },
-    { value: 37, name: "Potassium" },
-    { value: 75, name: "Temperature" },
-    { value: 45, name: "Humidity" },
-    { value: 60, name: "A.Moisture" },
-  ];
+  const farm_device_data = rec?.all_sensor_values.farm_device_data[0];
+  const farms = rec?.All_farms;
+  const valveDevicesData = rec?.all_sensor_values?.valve_devices_data;
+  
+  let avgMoisture = 0;  // Default value
+  
+  if (valveDevicesData && valveDevicesData.length > 0) {
+    const totalMoisture = valveDevicesData.reduce((acc, device) => acc + device.moisture, 0);
+    avgMoisture = Math.floor(totalMoisture / valveDevicesData.length);  // Rounding down to integer
+  } else {
+    console.log('No valve device data available');
+  }
+  
+  const farmname = farms[0]?.farm_name;
+  
+  const updatedFarmDeviceData = { ...farm_device_data, avg_moisture: avgMoisture };
+  
+  const fieldsensorvalve = [farmname, updatedFarmDeviceData];
+
+  const farmloc = rec?.farm_cordinates[0];
+
+  const sensorloc = rec?.all_devices.section_devices;
+
+  const farmdeviceloc = rec?.all_devices.farm_devices;
+
+  const moisturedata = rec?.all_sensor_values.moisture_devices;
+
+  const mapppingdevices = {farmlocation : farmloc, sensorlocation : sensorloc, farmdevicelocation : farmdeviceloc, moisturedata : moisturedata}
+
+  console.log(mapppingdevices);
+  
+  
 
   const notifications = [
     { message: "New crop update available", time: "10:30 AM" },
@@ -129,8 +153,6 @@ const User = () => {
     { title: "New crop update available", time: "00:00:00" },
   ];
 
-  const farmdata = [{ farmname: "Arecanut 1" }];
-
   return (
     <main>
       <header className="fixed-top">
@@ -141,28 +163,29 @@ const User = () => {
           <aside className="col-12 col-md-3 mb-4">
             <div className="borderring" style={{ position: "sticky", top: "72px", zIndex: 1000 }}>
               <div className="farmerDetails">
-                <Farmer farmer_Details={farmer_Details} />
+                <Farmer farmer_Details={user_details} />
               </div>
               <div className="FarmSensorsControl">
-                <FarmSensorsControl gauges={gauges} />
+                <FarmSensorsControl gauges={fieldsensorvalve} />
               </div>
               <div>
-                <FieldControl data={farmdata} />
+                {/* <FieldControl data={farmdata} /> */}
               </div>
             </div>
           </aside>
           <section className="col-12 col-md-9">
             <div className="d-flex flex-column align-items-center">
-              <div className="col-12">
+              <div className="col-12 mb-3">
                 <Farms farmDetails={farms} />
+
+              </div>
+              <div className="col-12">
+                <Map data={mapppingdevices} />
               </div>
               <div className="col-12 my-3">
-                <Map jsonData={jsonData} />
-              </div>
-              <div className="col-12">
                 <Sections sectionsData={sectionsData} />
               </div>
-              <div className="col-12 mt-3">
+              <div className="col-12 ">
                 <Logs logs={logs} />
               </div>
             </div>
