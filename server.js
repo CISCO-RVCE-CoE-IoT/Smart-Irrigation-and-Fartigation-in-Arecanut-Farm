@@ -174,18 +174,7 @@ app.get('/farmer/:farmer_id', async (req, res) => {
 
         const all_devices = await all_section_devices(a_farm_id);
 
-        const moisture_device_ids = all_devices.section_devices
-            .filter(device => device.device_name === "moisture")
-            .map(device => device.section_device_id);
-
-        const valve_device_ids = all_devices.section_devices
-            .filter(device => device.device_name === "valve")
-            .map(device => device.section_device_id);
-
-        const farm_device_ids = all_devices.farm_devices
-            .map(device => device.farm_device_id);
-
-        const all_sensor_values_data = await all_sensor_values(moisture_device_ids, valve_device_ids, farm_device_ids)
+        const all_sensor_values_data = await all_sensor_values(a_farm_id)
 
         res.status(200).send({
             farmer_details: farmer_details.rows[0],
@@ -205,7 +194,7 @@ app.get('/farmer/farm/valve/:valve_id', async (req, res) => {
     try {
         const { valve_id } = req.params;
         const valve_data = await pool.query(
-            "SELECT section_device_id, valve_mode, valve_status, timestamp, manual_off_timer FROM valve_data WHERE section_device_id = $1 ORDER BY valve_data_id DESC LIMIT 10", 
+            "SELECT section_device_id, valve_mode, valve_status, timestamp, manual_off_timer FROM valve_data WHERE section_device_id = $1 ORDER BY valve_data_id DESC LIMIT 10",
             [valve_id]
         );
 
@@ -224,7 +213,7 @@ app.get('/farmer/farm/moisture/:sensor_id', async (req, res) => {
     try {
         const { sensor_id } = req.params;
         const moisture_data = await pool.query(
-            "SELECT section_device_id, timestamp, moisture_value FROM moisture_data WHERE section_device_id =$1 ORDER BY moisture_data_id DESC limit 10;", 
+            "SELECT section_device_id, timestamp, moisture_value FROM moisture_data WHERE section_device_id =$1 ORDER BY moisture_data_id DESC limit 10;",
             [sensor_id]
         );
 
@@ -243,7 +232,7 @@ app.get('/farmer/farm/farm_device/:farm_device_id', async (req, res) => {
     try {
         const { farm_device_id } = req.params;
         const field_data = await pool.query(
-            "SELECT nitrogen, phosphorus, potassium, temperature, humidity, timestamp FROM field_data  WHERE farm_device_id = $1 ORDER BY field_data_id DESC limit 10;", 
+            "SELECT nitrogen, phosphorus, potassium, temperature, humidity, timestamp FROM field_data  WHERE farm_device_id = $1 ORDER BY field_data_id DESC limit 10;",
             [farm_device_id]
         );
 
@@ -296,25 +285,25 @@ app.get('/farmer/farm/:farm_id', async (req, res) => {
         console.error(error);
         res.status(500).send({ error: "An error occurred while fetching farmer details" });
     }
-});                                                                     
+});
 
-app.put('/farmer/farm/farm_name/:farm_id',async(req,res) => {
+app.put('/farmer/farm/farm_name/:farm_id', async (req, res) => {
     try {
-        const {farm_id} = req.params;
-        const { farmer_id, farm_name} =req.body;
-    
+        const { farm_id } = req.params;
+        const { farmer_id, farm_name } = req.body;
+
         if (!farmer_id, !farm_name) {
             return res.status(400).send({ error: "All fields are required" });
         }
-    
-        const farm_name_update_query='UPDATE farm SET farm_name=$1 WHERE farm_id=$2 AND farmer_id=$3 RETURNING farm_id, farm_name'
-    
-        const farm_updated_name = await pool.query(farm_name_update_query, [farm_name, farm_id,farmer_id]);
-    
+
+        const farm_name_update_query = 'UPDATE farm SET farm_name=$1 WHERE farm_id=$2 AND farmer_id=$3 RETURNING farm_id, farm_name'
+
+        const farm_updated_name = await pool.query(farm_name_update_query, [farm_name, farm_id, farmer_id]);
+
         if (farm_updated_name.rowCount === 0) {
             return res.status(404).send({ error: "No Farm found for the provided ID for this farmer" });
         }
-    
+
         return res.status(200).send({ message: "Farm name updated successfully", farm_updated_name: farm_updated_name.rows[0] });
     } catch (error) {
         console.error(error);
@@ -325,23 +314,23 @@ app.put('/farmer/farm/farm_name/:farm_id',async(req,res) => {
 
 });
 
-app.post('/farmer/farm/valve/:valve_id',async(req,res) => {
+app.post('/farmer/farm/valve/:valve_id', async (req, res) => {
     try {
-        const {valve_id} = req.params;
-        const { mode, status, timer=0 } = req.body;
+        const { valve_id } = req.params;
+        const { mode, status, timer = 0 } = req.body;
 
         if (!mode || !status) {
             return res.status(400).send({ error: 'mode and status are required' });
         }
 
-        const valveInsertQuery='INSERT INTO valve_data( section_device_id, valve_mode, valve_status, manual_off_timer) VALUES ($1,$2,$3,$4) RETURNING valve_mode,valve_status, timestamp'
-    
-        const valve_data = await pool.query(valveInsertQuery, [valve_id, mode,status,timer]);
-    
+        const valveInsertQuery = 'INSERT INTO valve_data( section_device_id, valve_mode, valve_status, manual_off_timer) VALUES ($1,$2,$3,$4) RETURNING valve_mode,valve_status, timestamp'
+
+        const valve_data = await pool.query(valveInsertQuery, [valve_id, mode, status, timer]);
+
         if (valve_data.rowCount === 0) {
             return res.status(404).send({ error: "No valve found for the provided ID" });
         }
-    
+
         return res.status(200).send({ message: "inserted value data successfully", valve_data: valve_data.rows[0] });
     } catch (error) {
         console.error(error);
@@ -356,48 +345,59 @@ async function farm_locations(farm_id) {
 
 async function all_section_devices(farm_id) {
 
-    const section_devices = await pool.query('SELECT sd.section_device_id, sd.section_id, sd.device_name, sd.device_location FROM section_devices sd JOIN section s ON sd.section_id=s.section_id WHERE farm_id = $1', [farm_id]);
-    const farm_devices = await pool.query('SELECT farm_device_id, device_name, device_location FROM farm_devices WHERE farm_id= $1', [farm_id]);
+    const [section_devices, farm_devices] = await Promise.all([
+        pool.query('SELECT sd.section_device_id, sd.section_id, sd.device_name, sd.device_location FROM section_devices sd JOIN section s ON sd.section_id=s.section_id WHERE farm_id = $1', [farm_id]),
+        pool.query('SELECT farm_device_id, device_name, device_location FROM farm_devices WHERE farm_id= $1', [farm_id])
+    ]);
+
     return { section_devices: section_devices.rows, farm_devices: farm_devices.rows }
 }
 
-async function all_sensor_values(moisture_devices, valve_devices, field_device) {
-    const moisture_devices_data = await pool.query(`
-        SELECT md.moisture_data_id, md.section_device_id, md.timestamp, md.moisture_value
-         FROM moisture_data md
-         JOIN (
-             SELECT section_device_id, MAX(moisture_data_id) AS max_moisture_data_id
-             FROM moisture_data
-             GROUP BY section_device_id
-         ) AS latest ON md.section_device_id = latest.section_device_id 
-         AND md.moisture_data_id = latest.max_moisture_data_id 
-         WHERE md.section_device_id = ANY($1);`, [moisture_devices]
-    );
+async function all_sensor_values(farm_id) {
 
-
-    const valve_devices_data = await pool.query(`
-        WITH latest_data AS (
-            SELECT section_device_id, MAX(valve_data_id) AS max_valve_data_id
-            FROM valve_data
-            GROUP BY section_device_id
+    const [moisture_devices_data, valve_devices_data, farm_device_data] = await Promise.all([
+        pool.query(`
+        SELECT DISTINCT ON (md.section_device_id) 
+            md.section_device_id, 
+            md.timestamp, 
+            md.moisture_value, 
+            md.section_id
+        FROM public.all_moisture_data md
+        WHERE md.farm_id = $1
+        ORDER BY md.section_device_id, md.moisture_data_id DESC;`, [farm_id]
         ),
-        average_moisture AS (
-            SELECT AVG(md.moisture_value) AS moisture, sd.section_id
-            FROM moisture_data md
-            JOIN section_devices sd ON sd.section_device_id = md.section_device_id
-            GROUP BY sd.section_id
-        )
-        SELECT vd.section_device_id, vd.valve_mode, vd.valve_status, vd.timestamp, vd.manual_off_timer, amd.moisture
-        FROM valve_data vd
-        JOIN section_devices vsd ON vsd.section_device_id = vd.section_device_id
-        JOIN latest_data latest ON vd.section_device_id = latest.section_device_id AND vd.valve_data_id = latest.max_valve_data_id
-        JOIN average_moisture amd ON amd.section_id = vsd.section_id
-        WHERE vd.section_device_id = ANY ($1);`, [valve_devices]
-    );
-
-    const farm_device_data = await pool.query(`
-        SELECT farm_device_id, nitrogen, phosphorus, potassium, temperature, humidity, timestamp
-	    FROM field_data WHERE farm_device_id= $1 ORDER BY TIMESTAMP DESC LIMIT 1;`, [field_device[0]])
+        pool.query(`
+        SELECT
+            section_id,
+            section_name,
+            section_device_id,
+            valve_mode,
+            valve_status,
+            valve_timestamp,
+            manual_off_timer,
+            avg_section_moisture
+        FROM
+            lst_valve_avg_moisture
+        WHERE
+            farm_id = $1;`, [farm_id]
+        ),
+        pool.query(`
+        SELECT
+            farm_device_id,
+            nitrogen,
+            phosphorus,
+            potassium,
+            temperature,
+            humidity,
+            timestamp
+        FROM
+            all_field_data
+        WHERE
+            farm_id = $1
+        ORDER BY
+            field_data_id DESC
+        LIMIT 1`, [farm_id]
+        )])
 
     return { moisture_devices: moisture_devices_data.rows, valve_devices_data: valve_devices_data.rows, farm_device_data: farm_device_data.rows }
 }
