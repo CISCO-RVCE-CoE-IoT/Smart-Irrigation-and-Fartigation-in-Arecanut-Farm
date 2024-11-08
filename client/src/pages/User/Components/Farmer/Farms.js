@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import './Farms.css';
 import clouds from './WeatherImages/clouds.png';
 import clear from './WeatherImages/clear.png';
@@ -9,24 +9,24 @@ import mist from './WeatherImages/mist.png';
 const apikey = "8925502a781648f4443f9e01d96c7ff5";
 const apiURL = "https://api.openweathermap.org/data/2.5/weather?units=metric&lat=";
 
-const Farms = ({ farmDetails }) => {
+const Farms = React.memo(({ farmDetails = [] }) => {
     const scrollerRef = useRef();
     const [weatherData, setWeatherData] = useState([]);
 
-    useEffect(() => {
-        const handleScroll = (event) => {
-            event.preventDefault();
-            if (scrollerRef.current) {
-                scrollerRef.current.scrollBy({
-                    left: event.deltaY * 1.5,
-                    behavior: 'smooth'
-                });
-            }
-        };
+    // Throttling scroll event
+    const handleScroll = useCallback((event) => {
+        if (scrollerRef.current) {
+            scrollerRef.current.scrollBy({
+                left: event.deltaY * 1.5,
+                behavior: 'smooth'
+            });
+        }
+    }, []);
 
+    useEffect(() => {
         const scroller = scrollerRef.current;
         if (scroller) {
-            scroller.addEventListener('wheel', handleScroll);
+            scroller.addEventListener('wheel', handleScroll, { passive: true });
         }
 
         return () => {
@@ -34,41 +34,40 @@ const Farms = ({ farmDetails }) => {
                 scroller.removeEventListener('wheel', handleScroll);
             }
         };
-    }, []);
+    }, [handleScroll]);
 
-    const checkWeather = async (latitude, longitude) => {
-        const response = await fetch(`${apiURL}${latitude}&lon=${longitude}&appid=${apikey}`);
-        if (response.status === 404) {
-            window.alert("Enter Valid Coordinates");
-        } else {
-            const data = await response.json();
-            return data;
+    const checkWeather = useCallback(async (latitude, longitude) => {
+        try {
+            const response = await fetch(`${apiURL}${latitude}&lon=${longitude}&appid=${apikey}`);
+            if (response.status === 404) {
+                window.alert("Enter Valid Coordinates");
+            } else {
+                return await response.json();
+            }
+        } catch (error) {
+            console.error("Error fetching weather data:", error);
         }
-    };
+        return null;
+    }, []);
 
     useEffect(() => {
         const fetchWeatherData = async () => {
             const weatherPromises = farmDetails.map(async (farm) => {
-                const firstCoordinate = farm.farm_location_cordinates[0];
-                if (firstCoordinate) {
-                    const [latitude, longitude] = firstCoordinate.split(',').map(coord => parseFloat(coord.trim()));
-                    const weather = await checkWeather(latitude, longitude);
-                    return { ...farm, weather, updatedAt: new Date().toLocaleTimeString() };
-                }
-                return { ...farm, weather: null, updatedAt: null };
+                const [latitude, longitude] = farm.farm_location.split(',').map(coord => parseFloat(coord.trim()));
+                const weather = await checkWeather(latitude, longitude);
+                return { ...farm, weather, updatedAt: new Date().toLocaleTimeString() };
             });
-            const results = await Promise.all(weatherPromises);
-            setWeatherData(results);
+            const results = await Promise.allSettled(weatherPromises);
+            const successfulResults = results.filter(result => result.status === 'fulfilled').map(result => result.value);
+            setWeatherData(successfulResults);
         };
 
         if (farmDetails.length > 0) {
             fetchWeatherData();
         }
-    }, [farmDetails]);
+    }, [farmDetails, checkWeather]);
 
-    function upperCase(name) {
-        return name.toUpperCase().slice(0, 1) + name.slice(1).toLowerCase();
-    }
+    const upperCase = (name) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 
     return (
         <div id="fields">
@@ -107,11 +106,10 @@ const Farms = ({ farmDetails }) => {
                                             <img
                                                 src={
                                                     farm.weather.weather[0].main === "Clouds" ? clouds :
-                                                        farm.weather.weather[0].main === "Clear" ? clear :
-                                                            farm.weather.weather[0].main === "Rain" ? rain :
-                                                                farm.weather.weather[0].main === "Drizzle" ? drizzle :
-                                                                    (farm.weather.weather[0].main === "Mist" || farm.weather.weather[0].main === "Haze") ? mist :
-                                                                        ''
+                                                    farm.weather.weather[0].main === "Clear" ? clear :
+                                                    farm.weather.weather[0].main === "Rain" ? rain :
+                                                    farm.weather.weather[0].main === "Drizzle" ? drizzle :
+                                                    (farm.weather.weather[0].main === "Mist" || farm.weather.weather[0].main === "Haze") ? mist : ''
                                                 }
                                                 width={80}
                                                 alt="Weather Icon"
@@ -137,14 +135,11 @@ const Farms = ({ farmDetails }) => {
                         background: "linear-gradient(to right, #f1f1f1 5%, #9bddf7)"
                     }}
                 >
-                    <div className=''>
-                        <div>
-                            <h5 className="fw-bold">{upperCase(weatherData[0].farm_name)}</h5>
-                            <strong className="text-dark fs-6 me-2">{weatherData[0].active ? "Active" : "Inactive"}</strong><br></br>
-                            <small className="text-secondary me-2">{weatherData[0].farm_size} ha</small>
-                            <small className='text-center text-secondary'>{weatherData[0].weather ? upperCase(weatherData[0].weather.name) : "Loading..."}</small>
-                        </div>
-
+                    <div>
+                        <h5 className="fw-bold">{upperCase(weatherData[0].farm_name)}</h5>
+                        <strong className="text-dark fs-6 me-2">{weatherData[0].active ? "Active" : "Inactive"}</strong><br />
+                        <small className="text-secondary me-2">{weatherData[0].farm_size} ha</small>
+                        <small className='text-center text-secondary'>{weatherData[0].weather ? upperCase(weatherData[0].weather.name) : "Loading..."}</small>
                     </div>
                     <div className='ps-5 py-1 d-flex align-items-center '>
                         {weatherData[0].weather && (
@@ -152,18 +147,16 @@ const Farms = ({ farmDetails }) => {
                                 <img
                                     src={
                                         weatherData[0].weather.weather[0].main === "Clouds" ? clouds :
-                                            weatherData[0].weather.weather[0].main === "Clear" ? clear :
-                                                weatherData[0].weather.weather[0].main === "Rain" ? rain :
-                                                    weatherData[0].weather.weather[0].main === "Drizzle" ? drizzle :
-                                                        (weatherData[0].weather.weather[0].main === "Mist" || weatherData[0].weather.weather[0].main === "Haze") ? mist :
-                                                            ''
+                                        weatherData[0].weather.weather[0].main === "Clear" ? clear :
+                                        weatherData[0].weather.weather[0].main === "Rain" ? rain :
+                                        weatherData[0].weather.weather[0].main === "Drizzle" ? drizzle :
+                                        (weatherData[0].weather.weather[0].main === "Mist" || weatherData[0].weather.weather[0].main === "Haze") ? mist : ''
                                     }
                                     width={80}
                                     alt="Weather Icon"
                                 />
-                                <br />
-                                <h6 className='text-center text-light me-2'>{weatherData[0].weather.weather[0].main} Sky</h6>
-                                <h6 className="text-center text-light me-2">{weatherData[0].weather.main.temp} °C</h6>
+                                <h6 className='text-center text-secondary me-2'>{weatherData[0].weather.weather[0].main} Sky</h6>
+                                <h6 className="text-center text-secondary me-2">{weatherData[0].weather.main.temp} °C</h6>
                             </>
                         )}
                     </div>
@@ -171,6 +164,6 @@ const Farms = ({ farmDetails }) => {
             )}
         </div>
     );
-};
+});
 
 export default Farms;

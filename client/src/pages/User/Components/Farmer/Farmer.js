@@ -1,12 +1,15 @@
 import React from 'react';
 import farmer from "../Images/farmer.jpg";
 
-const Farmer = ({farmer_Details}) => {
+const Farmer = ({ farmer_Details }) => {
     const imageStyle = {
         width: "5rem",
         height: "5rem",
         overflow: "hidden",
         borderRadius: "12%",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center"
     };
 
     function upperCase(name) {
@@ -21,7 +24,7 @@ const Farmer = ({farmer_Details}) => {
     };
 
     return (
-        <div className="user-details d-flex">
+        <div className="user-details d-flex align-items-center">
             <div className="img border" style={imageStyle}>
                 <img
                     src={farmer}
@@ -31,17 +34,15 @@ const Farmer = ({farmer_Details}) => {
                 />
             </div>
             <div className="mx-3 d-flex flex-column">
-                <h4 className="fw-bold" >
-                {upperCase(farmer_Details[0].farmer_fname)}
-                        
+                <h4 className="fw-bold mb-1">
+                    {upperCase(farmer_Details.farmer_fname)}
                 </h4>
-                <small className="text-secondary" >
-                    Id : U2024{farmer_Details[0].farmer_id}
+                <small className="text-secondary mb-1">
+                    Id : U2024{farmer_Details.farmer_id}
                 </small>
                 <small>
-                    Total Fields : <strong className='fs-5 px-1'>{farmer_Details[1]}</strong>
+                    Total fields : <strong className='fs-6 px-1'>{farmer_Details.farmer_total_farms}</strong>
                 </small>
-                
             </div>
         </div>
     );

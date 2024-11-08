@@ -24,7 +24,7 @@
 }
 
 .field-scroller::-webkit-scrollbar {
-    display: none; 
+        display: none; 
 }
 
 .farms {
