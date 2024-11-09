@@ -157,13 +157,26 @@ app.get('/farmer/:farmer_id', async (req, res) => {
     try {
         const { farmer_id } = req.params;
 
-        const farmer_details = await pool.query('SELECT farmer_id, farmer_fname FROM farmer WHERE farmer_id = $1', [farmer_id]);
+        const farmer_details = await pool.query(`
+            SELECT 
+                farmer_id, 
+                farmer_fname,
+                (SELECT COUNT(*) FROM farm WHERE farmer_id = farmer.farmer_id) AS farmer_total_farms
+            FROM farmer 
+            WHERE farmer_id = $1;`, [farmer_id]);
 
         if (farmer_details.rowCount === 0) {
             return res.status(404).send({ error: "Farmer not found" });
         }
 
-        const all_farms = await pool.query('SELECT farm_id, farm_name, farm_size FROM farm WHERE farmer_id = $1', [farmer_id]);
+        const all_farms = await pool.query(`
+            SELECT 
+                farm_id, 
+                farm_name, 
+                farm_size, 
+                farm_location_cordinates[1] AS farm_location 
+            FROM farm 
+            WHERE farmer_id = $1`, [farmer_id]);
 
         if (all_farms.rowCount === 0) {
             return res.status(404).send({ error: "No Farm found for the provided ID" });
@@ -178,10 +191,13 @@ app.get('/farmer/:farmer_id', async (req, res) => {
 
         res.status(200).send({
             farmer_details: farmer_details.rows[0],
-            All_farms: all_farms.rows,
-            farm_cordinates: a_farm_locations.rows,
-            all_devices: all_devices,
-            all_sensor_values: all_sensor_values_data
+            farmer_farms: all_farms.rows,
+            location_coordinates: {
+                farm_coordinates: a_farm_locations.rows[0].farm_location_cordinates,
+                farm_device: all_devices.farm_devices,
+                section_device: all_devices.section_devices
+            },
+            device_values: all_sensor_values_data
         });
 
     } catch (error) {
@@ -251,29 +267,15 @@ app.get('/farmer/farm/:farm_id', async (req, res) => {
     try {
         const { farm_id } = req.params;
 
+        const a_farm_locations = await farm_locations(farm_id);
 
-        const a_farm = await pool.query('SELECT farm_id, farm_name, farm_size FROM farm WHERE farm_id = $1', [farm_id]);
-
-        if (a_farm.rowCount === 0) {
+        if (a_farm_locations.rowCount === 0) {
             return res.status(404).send({ error: "No Farm found for the provided ID" });
         }
 
-        const a_farm_locations = await farm_locations(farm_id);
-
         const all_devices = await all_section_devices(farm_id);
 
-        const moisture_device_ids = all_devices.section_devices
-            .filter(device => device.device_name === "moisture")
-            .map(device => device.section_device_id);
-
-        const valve_device_ids = all_devices.section_devices
-            .filter(device => device.device_name === "valve")
-            .map(device => device.section_device_id);
-
-        const farm_device_ids = all_devices.farm_devices
-            .map(device => device.farm_device_id);
-
-        const all_sensor_values_data = await all_sensor_values(moisture_device_ids, valve_device_ids, farm_device_ids)
+        const all_sensor_values_data = await all_sensor_values(farm_id)
 
         res.status(200).send({
             farm_cordinates: a_farm_locations.rows,
@@ -317,15 +319,24 @@ app.put('/farmer/farm/farm_name/:farm_id', async (req, res) => {
 app.post('/farmer/farm/valve/:valve_id', async (req, res) => {
     try {
         const { valve_id } = req.params;
-        const { mode, status, timer = 0 } = req.body;
+        const { mode, status, timer = 0, farmer_id } = req.body;
 
-        if (!mode || !status) {
-            return res.status(400).send({ error: 'mode and status are required' });
+        if (!mode || !status || !farmer_id) {
+            return res.status(400).send({ error: 'Insufficient data' });
         }
 
-        const valveInsertQuery = 'INSERT INTO valve_data( section_device_id, valve_mode, valve_status, manual_off_timer) VALUES ($1,$2,$3,$4) RETURNING valve_mode,valve_status, timestamp'
+        const valveInsertQuery = `
+        INSERT INTO valve_data(section_device_id, valve_mode, valve_status, manual_off_timer)
+            SELECT $1, $2, $3, $4
+            WHERE EXISTS (
+            SELECT 1
+            FROM all_valve_data
+            WHERE section_device_id = $1 AND farmer_id = $5
+            )
+            RETURNING valve_mode, valve_status, timestamp;
+        `
 
-        const valve_data = await pool.query(valveInsertQuery, [valve_id, mode, status, timer]);
+        const valve_data = await pool.query(valveInsertQuery, [valve_id, mode, status, timer, farmer_id]);
 
         if (valve_data.rowCount === 0) {
             return res.status(404).send({ error: "No valve found for the provided ID" });
@@ -340,13 +351,13 @@ app.post('/farmer/farm/valve/:valve_id', async (req, res) => {
 });
 
 async function farm_locations(farm_id) {
-    return form_cordinates = await pool.query('SELECT farm_location_cordinates AS farm_loc FROM farm WHERE farm_id= $1', [farm_id])
+    return form_cordinates = await pool.query('SELECT farm_location_cordinates FROM farm WHERE farm_id= $1', [farm_id])
 }
 
 async function all_section_devices(farm_id) {
 
     const [section_devices, farm_devices] = await Promise.all([
-        pool.query('SELECT sd.section_device_id, sd.section_id, sd.device_name, sd.device_location FROM section_devices sd JOIN section s ON sd.section_id=s.section_id WHERE farm_id = $1', [farm_id]),
+        pool.query('SELECT sd.section_device_id, sd.section_id, s.section_name, sd.device_name, sd.device_location FROM section_devices sd JOIN section s ON sd.section_id=s.section_id WHERE farm_id = $1', [farm_id]),
         pool.query('SELECT farm_device_id, device_name, device_location FROM farm_devices WHERE farm_id= $1', [farm_id])
     ]);
 
@@ -382,24 +393,24 @@ async function all_sensor_values(farm_id) {
             farm_id = $1;`, [farm_id]
         ),
         pool.query(`
-        SELECT
+        SELECT 
             farm_device_id,
             nitrogen,
             phosphorus,
             potassium,
             temperature,
             humidity,
-            timestamp
-        FROM
-            all_field_data
-        WHERE
-            farm_id = $1
-        ORDER BY
-            field_data_id DESC
-        LIMIT 1`, [farm_id]
+            timestamp,
+            auto_on_threshold,
+            auto_off_threshold,
+            avg_moisture
+        FROM 
+            lst_field_data
+        WHERE 
+            farm_id = $1`, [farm_id]
         )])
 
-    return { moisture_devices: moisture_devices_data.rows, valve_devices_data: valve_devices_data.rows, farm_device_data: farm_device_data.rows }
+    return { moisture_device_value: moisture_devices_data.rows, valve_devices_data: valve_devices_data.rows, farm_device_data: farm_device_data.rows }
 }
 
 
