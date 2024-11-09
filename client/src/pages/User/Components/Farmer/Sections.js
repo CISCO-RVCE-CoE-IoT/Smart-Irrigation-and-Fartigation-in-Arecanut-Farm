@@ -1,24 +1,7 @@
 import React, { useState } from 'react';
 
-// Sample data for sections
-const sectionsData = [
-    {
-        section_device_id: 1,
-        valve_mode: "auto",
-        valve_status: "on",
-        moisture_level: 30,
-    },
-    {
-        section_device_id: 2,
-        valve_mode: "manual",
-        valve_status: "off",
-        moisture_level: 40,
-    },
-    // Add more sections as needed
-];
-
-const Sections = () => {
-    // Initialize state for all sections based on the sample data
+const Sections = ({ sectionsData = [] }) => {
+    // Initialize state for all sections based on the passed data
     const [sectionsState, setSectionsState] = useState(
         sectionsData.map(section => ({
             ...section,
@@ -114,8 +97,8 @@ const Sections = () => {
                         <tbody>
                             {sectionsState.map((section, index) => (
                                 <tr key={section.section_device_id}>
-                                    <td scope="row">Section {section.section_device_id}</td>
-                                    <td>{section.moisture_level}</td>
+                                    <td scope="row">{section.section_name}</td>
+                                    <td>{Math.floor(section.avg_section_moisture)}</td>
                                     <td>{capitalizeFirstLetter(section.valve_mode)} {capitalizeFirstLetter(section.valve_status)}</td>
                                     <td>
                                         <div className="d-flex align-items-center">

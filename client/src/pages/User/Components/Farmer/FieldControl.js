@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
-const FieldControl = ({ data }) => {
-    const name = data[0].farmname;
+const FieldControl = () => {
+   
 
     // State variables
     const [inputDuration, setInputDuration] = useState('');
@@ -38,7 +38,7 @@ const FieldControl = ({ data }) => {
         <div>
             <hr className="my-2"></hr>
             <div>
-                <h6>{name} farm controls</h6>
+                <h6>Farm controls</h6>
                 <div className='controller px-3 py-2'>
                     <div className="d-flex justify-content-evenly text-center">
                         <button

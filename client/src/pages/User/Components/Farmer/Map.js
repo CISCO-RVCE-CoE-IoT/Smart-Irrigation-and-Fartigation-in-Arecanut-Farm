@@ -1,24 +1,46 @@
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import campass from '../Images/campass.png';
+import 'leaflet/dist/leaflet.css';
 
-const Map = ({ data }) => {
+const Map = ({ locationCoordinates }) => {
     const mapRef = useRef(null);
     const [legendItems, setLegendItems] = useState([]);
 
+    // Handle scroll behavior
+    const scrollerRef = useRef(null);
+
+    useEffect(() => {
+        const handleWheel = (event) => {
+            event.preventDefault();
+            if (scrollerRef.current) {
+                scrollerRef.current.scrollLeft += event.deltaY;
+            }
+        };
+
+        const scroller = scrollerRef.current;
+        if (scroller) {
+            scroller.addEventListener("wheel", handleWheel, { passive: false });
+        }
+
+        return () => {
+            if (scroller) {
+                scroller.removeEventListener("wheel", handleWheel);
+            }
+        };
+    }, []);
+
     useEffect(() => {
         if (mapRef.current) {
-            const map = L.map(mapRef.current).setView([16.22525, 74.8424], 25);
+            // Create the map
+            const map = L.map(mapRef.current).setView([16.22525, 74.8424], 16);
 
-            L.tileLayer(
-                "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                {
-                    maxZoom: 26,
-                    minZoom: 2,
-                }
-            ).addTo(map);
+            // Add tile layer
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                maxZoom: 29,
+                minZoom: 2,
+            }).addTo(map);
 
-            // Color mappings
+            // Define colors for sensor types
             const colorMap = {
                 farmland: "green",
                 valve: "orange",
@@ -26,93 +48,107 @@ const Map = ({ data }) => {
                 npk: "red",
             };
 
-            // Handle farmland polygon
-            const farmlandCoordinates = data.farmlocation.farm_loc.map((loc) => {
-                const [lat, lon] = loc.split(",").map(Number);
-                return [lat, lon];
-            });
-            const farmlandLayer = L.polygon(farmlandCoordinates, {
-                color: colorMap.farmland,
-            }).addTo(map);
-            farmlandLayer.bindPopup("Farmland Area");
-
-            // Fit map to the farmland bounds
-            const farmlandBounds = L.latLngBounds(farmlandCoordinates);
-            map.fitBounds(farmlandBounds);
-
-            // Unique types for legend
+            // Create a set to hold unique sensor types for the legend
             const uniqueTypes = new Set();
 
-            // Handle sensor locations with moisture data
-            data.sensorlocation.forEach((sensor) => {
-                uniqueTypes.add(sensor.device_name);
-                const [lat, lon] = sensor.device_location.split(",").map(Number);
-                const color = colorMap[sensor.device_name] || "gray";
-                
-                // Find related moisture data
-                const moistureData = data.moisturedata.find(m => m.section_device_id === sensor.section_device_id);
-                const popupContent = moistureData
-                    ? `${sensor.device_name}: ${sensor.section_id}<br/>Moisture: ${moistureData.moisture_value}%<br/>Timestamp: ${new Date(moistureData.timestamp).toLocaleString()}`
-                    : `${sensor.device_name}: ${sensor.section_id}`;
-
-                L.circleMarker([lat, lon], {
-                    radius: sensor.device_name === "moisture" ? 5 : 8,
-                    fillColor: color,
-                    color: "black",
-                    fillOpacity: 1,
-                    stroke: sensor.device_name === "moisture" ? false : true,
-                }).addTo(map).bindPopup(popupContent);
+            // Add farmland as polygon
+            const farmlandCoordinates = locationCoordinates.farm_coordinates.map(coord => {
+                const [lat, lon] = coord.split(",");
+                return [parseFloat(lat), parseFloat(lon)];
             });
 
-            // Handle farm device locations
-            data.farmdevicelocation.forEach((device) => {
-                uniqueTypes.add(device.device_name);
+            const farmlandLayer = L.polygon(farmlandCoordinates, { color: colorMap.farmland }).addTo(map);
+            farmlandLayer.bindPopup("Farmland Area");
+
+            // Create section devices markers
+            locationCoordinates.section_device.forEach(device => {
                 const [lat, lon] = device.device_location.split(",").map(Number);
-                const color = colorMap[device.device_name] || "gray";
+                uniqueTypes.add(device.device_name); // Add device type for legend
 
-                L.circleMarker([lat, lon], {
-                    radius: 6,
-                    fillColor: color,
-                    color: color,
-                    fillOpacity: 1,
-                    weight: 1,
-                }).addTo(map).bindPopup(`${device.device_name}: ${device.farm_device_id}`);
+                if (device.device_name === "moisture") {
+                    const moistureRadiusInCm = 50; // Example radius for moisture
+                    L.circle([lat, lon], {
+                        radius: moistureRadiusInCm,
+                        fillColor: colorMap.moisture,
+                        color: colorMap.moisture,
+                        fillOpacity: 0.4,
+                        weight: 1,
+                    }).addTo(map).bindPopup(`Moisture Sensor in ${device.section_name}`);
+                } else if (device.device_name === "valve") {
+                    L.circleMarker([lat, lon], {
+                        radius: 8,
+                        fillColor: colorMap.valve,
+                        color: colorMap.valve,
+                        fillOpacity: 0.6,
+                        weight: 2,
+                    }).addTo(map).bindPopup(`Valve in ${device.section_name}`);
+                }
             });
 
-            // Legend items
-            const legendData = Array.from(uniqueTypes).map((type) => ({
+            // Add farm device (NPK)
+            locationCoordinates.farm_device.forEach(device => {
+                const [lat, lon] = device.device_location.split(",").map(Number);
+                L.circleMarker([lat, lon], {
+                    radius: 5,
+                    fillColor: colorMap.npk,
+                    color: colorMap.npk,
+                    fillOpacity: 1,
+                    stroke: false,
+                }).addTo(map).bindPopup(`NPK Device: ${device.device_name}`);
+            });
+
+            // Create legend items dynamically
+            const legendData = Array.from(uniqueTypes).map(type => ({
                 type,
-                color: colorMap[type] || "gray",
+                color: colorMap[type] || "gray", // Fallback color
             }));
+
             setLegendItems(legendData);
 
-            // Cleanup on unmount
+            // Optionally fit bounds to the farmland
+            const bounds = L.latLngBounds(farmlandCoordinates);
+            map.fitBounds(bounds);
+
             return () => {
                 map.remove();
             };
         }
-    }, [data]);
+    }, [locationCoordinates]);
 
     return (
-        <div style={{ position: "relative" ,overflow:'hidden'}} className="borderring">
-            <div ref={mapRef} style={{ width: "100%", height: "445px", scale: "1.25" }}></div>
-            <div style={{
-                position: "absolute",
-                top: "10px",
-                right: "10px",
-                backgroundColor: "white",
-                padding: "6px",
-                borderRadius: "5px",
-                boxShadow: "0 0 5px rgba(0,0,0,0.5)",
-                zIndex: 10,
-            }}>
-                {legendItems.map((item) => (
-                    <div key={item.type} style={{ display: "flex", alignItems: "center" }}>
-                        <div style={{ width: "10px", height: "10px", backgroundColor: item.color, marginRight: "5px" }}></div>
-                        <span style={{ fontSize: '13px' }}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</span>
-                    </div>
-                ))}
-                <img src={campass} width={80} alt="Compass"/>
+        <div ref={scrollerRef} className="borderring p-0" style={{ overflow: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+            <div className="borderring" style={{ position: "relative", border: 'none' }}>
+                <h6 className="text-secondary" style={{ zIndex: 2, position: "relative", top: '0px', left: '0px' }}>Field Overview</h6>
+                <div
+                    ref={mapRef}
+                    style={{
+                        width: "100%",
+                        height: "445px",
+                        scale: "1.45",
+                        overflow: "hidden",
+                        position: "relative"
+                    }}
+                >
+                </div>
+
+                {/* Dynamic Legend */}
+                <div style={{
+                    position: "absolute",
+                    top: "10px",
+                    right: "10px",
+                    backgroundColor: "white",
+                    padding: "6px",
+                    borderRadius: "5px",
+                    boxShadow: "0 0 5px rgba(0,0,0,0.5)",
+                    zIndex: 10,
+                }}>
+                    {legendItems.map((item) => (
+                        <div key={item.type} style={{ display: "flex", alignItems: "center" }}>
+                            <div style={{ width: "10px", height: "10px", backgroundColor: item.color, marginRight: "5px" }}></div>
+                            <span style={{fontSize:'13px'}}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</span>
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );
