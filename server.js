@@ -1,4 +1,5 @@
 const express = require('express')
+const crypto = require('crypto');
 const pool = require('./db')
 const port = 3000
 
@@ -24,46 +25,57 @@ app.get('/', async (req, res) => {
     }
 });
 
-//admin page api
-
 app.get('/login', async (req, res) => {
-    try {
-        const { user, password, type } = req.body;
-        let query, params, result;
-        params = [user];
-        if (type === "admin") {
-            if (/^\d+$/.test(user)) {
-                query = `SELECT admin_id AS user_id, admin_password AS user_password FROM admin WHERE admin_id = $1`;
-            } else {
-                query = `SELECT admin_id AS user_id, admin_password AS user_password FROM admin WHERE admin_email = $1`;
-            }
-        } else if (type === "user") {
-            if (/^\d+$/.test(user)) {
-                query = `SELECT farmer_id AS user_id, farmer_password AS user_password FROM farmer WHERE farmer_id = $1`;
-            } else {
-                query = `SELECT farmer_id AS user_id, farmer_password AS user_password FROM farmer WHERE farmer_email = $1`;
-            }
-        } else {
-            return res.status(400).send({ message: "Invalid user type" });
-        }
+  try {
+    const { user, password, type } = req.body;
+    let query, params, result, sessionKey;
+    
+    params = [user];
 
-        result = await pool.query(query, params);
-        if (result.rows.length === 0) {
-            return res.status(404).send({ message: "No user found" });
-        }
-
-        const isPasswordValid = (password === result.rows[0].user_password);
-        if (isPasswordValid) {
-            return res.status(200).send({ message: "Authorized", userId: result.rows[0].user_id });
-        } else {
-            return res.status(401).send({ message: "Unauthorized" });
-        }
-
-    } catch (error) {
-        console.error(error);
-        res.sendStatus(500);
+    if (type === "admin") {
+      if (/^\d+$/.test(user)) {
+        query = `SELECT admin_id AS user_id, admin_password AS user_password, admin_session_key FROM admin WHERE admin_id = $1`;
+      } else {
+        query = `SELECT admin_id AS user_id, admin_password AS user_password, admin_session_key FROM admin WHERE admin_email = $1`;
+      }
+    } else if (type === "user") {
+      if (/^\d+$/.test(user)) {
+        query = `SELECT farmer_id AS user_id, farmer_password AS user_password, farmer_session_key FROM farmer WHERE farmer_id = $1`;
+      } else {
+        query = `SELECT farmer_id AS user_id, farmer_password AS user_password, farmer_session_key FROM farmer WHERE farmer_email = $1`;
+      }
+    } else {
+      return res.status(400).send({ message: "Invalid user type" });
     }
+
+    result = await pool.query(query, params);
+
+    if (result.rows.length === 0) {
+      return res.status(404).send({ message: "No user found" });
+    }
+
+    const isPasswordValid = (password === result.rows[0].user_password);
+
+    if (isPasswordValid) {
+      sessionKey = crypto.randomBytes(16).toString('hex');
+
+      if (type === 'admin') {
+        await pool.query(`UPDATE admin SET admin_session_key = $1 WHERE admin_id = $2`, [sessionKey, result.rows[0].user_id]);
+      } else if (type === 'user') {
+        await pool.query(`UPDATE farmer SET farmer_session_key = $1 WHERE farmer_id = $2`, [sessionKey, result.rows[0].user_id]);
+      }
+
+      return res.status(200).send({ message: "Authorized", userId: result.rows[0].user_id, sessionKey: sessionKey });
+    } else {
+      return res.status(401).send({ message: "Unauthorized" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
 });
+
+//admin page api
 
 app.post('/admin/farmer', async (req, res) => {
     try {
@@ -176,24 +188,26 @@ app.get('/farmer/:farmer_id', async (req, res) => {
                 farm_size, 
                 farm_location_cordinates[1] AS farm_location 
             FROM farm 
-            WHERE farmer_id = $1`, [farmer_id]);
+            WHERE farmer_id = $1
+            ORDER BY farm_id`, [farmer_id]);
 
         if (all_farms.rowCount === 0) {
             return res.status(404).send({ error: "No Farm found for the provided ID" });
         }
 
         const a_farm_id = all_farms.rows[0].farm_id;
+
+        const a_farm_details = await farm_details(a_farm_id);
         const a_farm_locations = await farm_locations(a_farm_id);
-
         const all_devices = await all_section_devices(a_farm_id);
-
         const all_sensor_values_data = await all_sensor_values(a_farm_id)
 
         res.status(200).send({
             farmer_details: farmer_details.rows[0],
             farmer_farms: all_farms.rows,
+            farm_details:a_farm_details,
             location_coordinates: {
-                farm_coordinates: a_farm_locations.rows[0].farm_location_cordinates,
+                farm_coordinates: a_farm_locations.farm_location_cordinates,
                 farm_device: all_devices.farm_devices,
                 section_device: all_devices.section_devices
             },
@@ -273,12 +287,13 @@ app.get('/farmer/farm/:farm_id', async (req, res) => {
             return res.status(404).send({ error: "No Farm found for the provided ID" });
         }
 
+        const farm_detail = await farm_details(farm_id);
         const all_devices = await all_section_devices(farm_id);
-
         const all_sensor_values_data = await all_sensor_values(farm_id)
 
         res.status(200).send({
-            farm_cordinates: a_farm_locations.rows,
+            farm_details:farm_detail,
+            farm_cordinates: a_farm_locations.farm_location_cordinates,
             all_devices: all_devices,
             all_sensor_values: all_sensor_values_data
         });
@@ -316,6 +331,35 @@ app.put('/farmer/farm/farm_name/:farm_id', async (req, res) => {
 
 });
 
+app.put('/farmer/farm/auto_threshold/:farm_id', async (req, res) => {
+    try {
+        const { farm_id } = req.params;
+        const { auto_on_threshold, auto_off_threshold, farmer_id } = req.body;
+
+        if (!auto_on_threshold || !auto_off_threshold || !farm_id) {
+            return res.status(400).send({ error: "All fields are required" });
+        }
+
+        if (typeof auto_on_threshold !== 'number' || typeof auto_off_threshold !== 'number' || 100 >= auto_on_threshold <= 0 || 100 >= auto_off_threshold <= 0) {
+            return res.status(400).send({ error: "Invalid threshold values" });
+        }
+
+        const auto_threshold_update_query = 'UPDATE farm SET auto_on_threshold=$1, auto_off_threshold=$2 WHERE farm_id=$3 AND farmer_id=$4 RETURNING auto_on_threshold, auto_off_threshold';
+
+        const auto_threshold_update = await pool.query(auto_threshold_update_query, [auto_on_threshold, auto_off_threshold, farm_id, farmer_id]);
+
+        if (auto_threshold_update.rowCount === 0) {
+            return res.status(404).send({ error: "No Farm found for the provided ID for this farmer" });
+        }
+
+        return res.status(200).send({ message: "Auto threshold updated successfully", auto_threshold_update: auto_threshold_update.rows[0] });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "An error occurred while updating auto_threshold values" });
+    }
+});
+
 app.post('/farmer/farm/valve/:valve_id', async (req, res) => {
     try {
         const { valve_id } = req.params;
@@ -351,14 +395,42 @@ app.post('/farmer/farm/valve/:valve_id', async (req, res) => {
 });
 
 async function farm_locations(farm_id) {
-    return form_cordinates = await pool.query('SELECT farm_location_cordinates FROM farm WHERE farm_id= $1', [farm_id])
+    const result = await pool.query(
+        'SELECT farm_location_cordinates FROM farm WHERE farm_id = $1',
+        [farm_id]
+    );
+    return result.rows[0];
+}
+
+async function farm_details(farm_id) {
+    const result = await pool.query(
+        'SELECT farm_name, auto_on_threshold, auto_off_threshold FROM farm WHERE farm_id = $1',[farm_id]
+    );
+    return result.rows[0]; 
 }
 
 async function all_section_devices(farm_id) {
 
     const [section_devices, farm_devices] = await Promise.all([
-        pool.query('SELECT sd.section_device_id, sd.section_id, s.section_name, sd.device_name, sd.device_location FROM section_devices sd JOIN section s ON sd.section_id=s.section_id WHERE farm_id = $1', [farm_id]),
-        pool.query('SELECT farm_device_id, device_name, device_location FROM farm_devices WHERE farm_id= $1', [farm_id])
+        pool.query(
+            `SELECT 
+                sd.section_device_id, 
+                sd.section_id, 
+                s.section_name, 
+                sd.device_name, 
+                sd.device_location 
+            FROM section_devices sd 
+            JOIN section s ON sd.section_id = s.section_id 
+            WHERE farm_id = $1`, [farm_id]
+        ),
+        pool.query(
+            `SELECT 
+                farm_device_id, 
+                device_name, 
+                device_location 
+            FROM farm_devices 
+            WHERE farm_id = $1`, [farm_id]
+        )
     ]);
 
     return { section_devices: section_devices.rows, farm_devices: farm_devices.rows }
@@ -375,7 +447,7 @@ async function all_sensor_values(farm_id) {
             md.section_id
         FROM public.all_moisture_data md
         WHERE md.farm_id = $1
-        ORDER BY md.section_device_id, md.moisture_data_id DESC;`, [farm_id]
+        ORDER BY md.section_device_id, md.moisture_data_id DESC`, [farm_id]
         ),
         pool.query(`
         SELECT
@@ -390,7 +462,7 @@ async function all_sensor_values(farm_id) {
         FROM
             lst_valve_avg_moisture
         WHERE
-            farm_id = $1;`, [farm_id]
+            farm_id = $1`, [farm_id]
         ),
         pool.query(`
         SELECT 
@@ -401,17 +473,19 @@ async function all_sensor_values(farm_id) {
             temperature,
             humidity,
             timestamp,
-            auto_on_threshold,
-            auto_off_threshold,
             avg_moisture
         FROM 
             lst_field_data
         WHERE 
             farm_id = $1`, [farm_id]
-        )])
+        )
+    ])
+    return {
+        moisture_device_value: moisture_devices_data.rows,
+        valve_devices_data: valve_devices_data.rows,
+        farm_device_data: farm_device_data.rows,
+    }
 
-    return { moisture_device_value: moisture_devices_data.rows, valve_devices_data: valve_devices_data.rows, farm_device_data: farm_device_data.rows }
 }
-
 
 app.listen(port, () => console.log(`server started on port: ${port}`)) 
