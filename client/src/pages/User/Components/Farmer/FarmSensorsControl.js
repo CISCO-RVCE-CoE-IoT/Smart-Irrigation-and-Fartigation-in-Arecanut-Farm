@@ -1,7 +1,10 @@
 import React from 'react';
 import ProgressChart from './ProgressChart';
+import FieldControl from "./FieldControl";
 
-const FarmSensorsControl = ({ gauges }) => {
+
+
+const FarmSensorsControl = ({ gauges = [], farmname, activeDevices }) => {
     const units = {
         nitrogen: 'kg/ha',
         phosphorus: 'kg/ha',
@@ -10,12 +13,13 @@ const FarmSensorsControl = ({ gauges }) => {
         humidity: '%',
         avg_moisture: '%',
     };
+    const upperCase = (name) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+
 
     return (
-        <div>
-            <h6 className='fs-5'>Farm Sensors</h6>
+        <div className='borderring'>
             <div className='text-secondary d-flex justify-content-between align-items-center'>
-                <small className='text-dark'>Sensor Values</small>
+                <span className='text-dark fs-5 fw-bold'>{upperCase(farmname)}</span>
                 <div className="d-flex align-items-center" aria-live="polite">
                     <span className="fw-bold text-dark">Active</span>
                     <div
@@ -30,30 +34,55 @@ const FarmSensorsControl = ({ gauges }) => {
             <small className='text-secondary'>Last updated: {new Date(gauges[0].timestamp).toLocaleString()}</small>
 
             <div className="ProgressCharts" style={{ width: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                <div className="Sensors" style={{ width: "100%" }}>
-                    <div className="row" style={{ display: "flex", flexWrap: "wrap" }}>
-                        {Object.entries(gauges[0]).map(([name, value], index) => (
-                            name !== "timestamp" && name !== "farm_device_id" && (
-                                <div
-                                    className="col-6"
-                                    key={index}
-                                    style={{
-                                        flex: "1 1 50%",
-                                        textAlign: "center",
-                                        padding: "10px",
-                                        boxSizing: "border-box"
-                                    }}
-                                >
-                                    <ProgressChart
-                                        value={Math.round(value)} 
-                                        name={name.charAt(0).toUpperCase() + name.slice(1)}
-                                        unit={units[name] || 'mg/kg'}
-                                    />
-                                </div>
-                            )
-                        ))}
-                    </div>
+                <div className="Sensors" style={{ width: "100%", display: "grid", gap: "10px", padding: "10px" }}>
+                    <style>
+                        {`
+                            .Sensors {
+                                grid-template-columns: repeat(1, 1fr); /* Default to one column */
+                            }
+                            /* Tablet view: 3 charts in a row */
+                            @media (min-width: 768px) {
+                                .Sensors {
+                                    grid-template-columns: repeat(3, 1fr);
+                                }
+                            }
+                            /* Laptop/Desktop view: all charts in a row */
+                            @media (min-width: 1024px) {
+                                .Sensors {
+                                    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                                }
+                            }
+                            /* Mobile view: 2 charts in a row */
+                            @media (max-width: 767px) {
+                                .Sensors {
+                                    grid-template-columns: repeat(2, 1fr);
+                                }
+                            }
+                        `}
+                    </style>
+                    {Object.entries(gauges[0]).map(([name, value], index) =>
+                        name !== "timestamp" && name !== "farm_device_id" && (
+                            <div
+                                className="col"
+                                key={index}
+                                style={{
+                                    textAlign: "center",
+                                    boxSizing: "border-box"
+                                }}
+                            >
+                                <ProgressChart
+                                    value={Math.round(value)}
+                                    name={name.charAt(0).toUpperCase() + name.slice(1)}
+                                    unit={units[name] || 'mg/kg'}
+                                />
+                            </div>
+                        )
+                    )}
                 </div>
+            </div>
+            <hr className='m-1' />
+            <div>
+                <FieldControl activeDevices={activeDevices} />
             </div>
         </div>
     );

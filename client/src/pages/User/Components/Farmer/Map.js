@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
 
-const Map = ({ locationCoordinates }) => {
+const MapContainer = ({ locationCoordinates, device_values }) => {
     const mapRef = useRef(null);
+    const mapInstance = useRef(null);  // Ref to store the map instance
     const [legendItems, setLegendItems] = useState([]);
 
     // Handle scroll behavior
@@ -30,63 +31,78 @@ const Map = ({ locationCoordinates }) => {
     }, []);
 
     useEffect(() => {
+        if (!locationCoordinates || !device_values) return;
+    
+        // Destroy existing map instance if it exists
+        if (mapInstance.current) {
+            mapInstance.current.remove();
+        }
+    
         if (mapRef.current) {
-            // Create the map
-            const map = L.map(mapRef.current).setView([16.22525, 74.8424], 16);
-
-            // Add tile layer
+            // Initialize the map
+            mapInstance.current = L.map(mapRef.current).setView([16.22525, 74.8424], 16);
+    
             L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
                 maxZoom: 29,
                 minZoom: 2,
-            }).addTo(map);
-
-            // Define colors for sensor types
+            }).addTo(mapInstance.current);
+    
             const colorMap = {
                 farmland: "green",
                 valve: "orange",
-                moisture: "blue",
+                moisture: "darkblue",
                 npk: "red",
             };
-
-            // Create a set to hold unique sensor types for the legend
+    
             const uniqueTypes = new Set();
-
-            // Add farmland as polygon
-            const farmlandCoordinates = locationCoordinates.farm_coordinates.map(coord => {
+    
+            // Plot farmland coordinates
+            const farmlandCoordinates = locationCoordinates.farm_coordinates?.map(coord => {
                 const [lat, lon] = coord.split(",");
                 return [parseFloat(lat), parseFloat(lon)];
-            });
-
-            const farmlandLayer = L.polygon(farmlandCoordinates, { color: colorMap.farmland }).addTo(map);
+            }) || [];
+    
+            const farmlandLayer = L.polygon(farmlandCoordinates, { color: colorMap.farmland }).addTo(mapInstance.current);
             farmlandLayer.bindPopup("Farmland Area");
-
-            // Create section devices markers
-            locationCoordinates.section_device.forEach(device => {
+    
+            // Create a map for moisture values
+            const moistureValuesMap = new Map();
+            device_values?.moisture_device_value?.forEach(({ section_device_id, moisture_value }) => {
+                moistureValuesMap.set(section_device_id, moisture_value);
+            });
+    
+            // Plot section devices with moisture values
+            locationCoordinates.section_device?.forEach(device => {
                 const [lat, lon] = device.device_location.split(",").map(Number);
-                uniqueTypes.add(device.device_name); // Add device type for legend
-
+                uniqueTypes.add(device.device_name);
+    
                 if (device.device_name === "moisture") {
-                    const moistureRadiusInCm = 50; // Example radius for moisture
+                    const moistureValue = moistureValuesMap.get(device.section_device_id) || 0;
+                    const moistureRadius = moistureValue * 0.5; // Adjust scaling factor as needed
+    
                     L.circle([lat, lon], {
-                        radius: moistureRadiusInCm,
+                        radius: moistureRadius,
                         fillColor: colorMap.moisture,
                         color: colorMap.moisture,
                         fillOpacity: 0.4,
                         weight: 1,
-                    }).addTo(map).bindPopup(`Moisture Sensor in ${device.section_name}`);
+                    }).addTo(mapInstance.current).bindPopup(`Moisture Sensor in ${device.section_name}<br/>Value: ${moistureValue}`);
                 } else if (device.device_name === "valve") {
+                    const valveStatus = device_values?.valve_devices_data?.find(v => v.section_device_id === device.section_device_id);
+                    const valveColor = valveStatus?.valve_status === "on" ? "green" : "red";
+    
                     L.circleMarker([lat, lon], {
                         radius: 8,
-                        fillColor: colorMap.valve,
-                        color: colorMap.valve,
+                        fillColor: valveColor,
+                        color: valveColor,
                         fillOpacity: 0.6,
                         weight: 2,
-                    }).addTo(map).bindPopup(`Valve in ${device.section_name}`);
+                    }).addTo(mapInstance.current).bindPopup(`Valve in ${device.section_name}`);
                 }
             });
-
-            // Add farm device (NPK)
-            locationCoordinates.farm_device.forEach(device => {
+    
+            // Plot NPK devices
+            locationCoordinates.farm_device?.forEach(device => {
                 const [lat, lon] = device.device_location.split(",").map(Number);
                 L.circleMarker([lat, lon], {
                     radius: 5,
@@ -94,26 +110,24 @@ const Map = ({ locationCoordinates }) => {
                     color: colorMap.npk,
                     fillOpacity: 1,
                     stroke: false,
-                }).addTo(map).bindPopup(`NPK Device: ${device.device_name}`);
+                }).addTo(mapInstance.current).bindPopup(`NPK Device: ${device.device_name}`);
             });
-
-            // Create legend items dynamically
+    
+            // Generate legend items
             const legendData = Array.from(uniqueTypes).map(type => ({
                 type,
-                color: colorMap[type] || "gray", // Fallback color
+                color: colorMap[type] || "gray",
             }));
-
+    
             setLegendItems(legendData);
-
-            // Optionally fit bounds to the farmland
+    
+            // Fit the map to the farmland bounds
             const bounds = L.latLngBounds(farmlandCoordinates);
-            map.fitBounds(bounds);
-
-            return () => {
-                map.remove();
-            };
+            mapInstance.current.fitBounds(bounds);
         }
-    }, [locationCoordinates]);
+    }, [locationCoordinates, device_values]);
+    
+    
 
     return (
         <div ref={scrollerRef} className="borderring p-0" style={{ overflow: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" }}>
@@ -154,4 +168,4 @@ const Map = ({ locationCoordinates }) => {
     );
 };
 
-export default Map;
+export default MapContainer;

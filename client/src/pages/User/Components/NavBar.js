@@ -27,7 +27,8 @@ const NavBar = ({ notifications }) => {
 
         {/* Navigation links and user icon with dropdown */}
         <div className="d-flex align-items-center">
-          <ul className="list-unstyled d-flex mb-0 me-1">
+          {/* For larger screens */}
+          <ul className="list-unstyled d-flex mb-0 me-1 d-none d-sm-flex">
             <li className="me-2 d-flex align-items-center">
               {/* Tooltip for Call Us */}
               <OverlayTrigger
@@ -35,7 +36,7 @@ const NavBar = ({ notifications }) => {
                 overlay={<Tooltip id="call-tooltip">Call: 9876543210</Tooltip>}
               >
                 <a href="#" className="text-decoration-none text-dark">
-                  Call Us
+                  Call Us <i className="fa-solid fa-phone"></i>
                 </a>
               </OverlayTrigger>
             </li>
@@ -47,7 +48,7 @@ const NavBar = ({ notifications }) => {
                 className="text-dark text-decoration-none"
                 style={{ cursor: "pointer" }}
               >
-                Notifications
+                Notifications <i className="fa-regular fa-bell"></i>
               </Dropdown.Toggle>
               <Dropdown.Menu>
                 {notifications.slice(0, 10).map((notification, index) => (
@@ -69,8 +70,8 @@ const NavBar = ({ notifications }) => {
             </Dropdown>
           </ul>
 
-          {/* User dropdown */}
-          <Dropdown style={{ borderLeft: "1px solid grey" }}>
+          {/* User dropdown visible on larger screens */}
+          <Dropdown style={{ borderLeft: "1px solid grey" }} className="d-none d-sm-block">
             <Dropdown.Toggle variant="link" className="px-3 border-1">
               <img
                 src={user}
@@ -86,6 +87,66 @@ const NavBar = ({ notifications }) => {
             </Dropdown.Menu>
           </Dropdown>
         </div>
+
+        {/* Mobile View - show Call, Notifications, and User icon */}
+        <ul className="list-unstyled d-flex mb-0 ms-3 d-block d-sm-none w-100 justify-content-end">
+          <li className="me-1 d-flex align-items-center">
+            {/* Tooltip for Call Us */}
+            <OverlayTrigger
+              placement="bottom"
+              overlay={<Tooltip id="call-tooltip">Call: 9876543210</Tooltip>}
+            >
+              <a href="#" className="text-decoration-none text-dark">
+                <i className="fa-solid fa-phone"></i>
+              </a>
+            </OverlayTrigger>
+          </li>
+
+          {/* Notifications dropdown */}
+          <Dropdown align="end">
+            <Dropdown.Toggle
+              variant="link"
+              className="text-dark text-decoration-none mt-1"
+              style={{ cursor: "pointer" }}
+            >
+              <i className="fa-regular fa-bell"></i>
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+              {notifications.slice(0, 10).map((notification, index) => (
+                <Dropdown.Item
+                  key={index}
+                  className={`d-flex justify-content-between ${index % 2 === 0 ? "bg-light" : "bg-white"
+                    }`}
+                >
+                  <span className="fw-semibold">{notification.message}</span>
+                  <span
+                    className="text-muted small"
+                    style={{ marginLeft: "20px" }}
+                  >
+                    {notification.time}
+                  </span>
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown>
+
+          {/* User dropdown */}
+          <Dropdown style={{ borderLeft: "1px solid grey" }}>
+            <Dropdown.Toggle variant="link" className="px-2 border-1">
+              <img
+                src={user}
+                alt="user profile"
+                className="rounded-circle border border-secondary"
+                style={{ width: "30px", height: "30px" }}
+              />
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu align="end">
+              <Dropdown.Item href="#edit-profile">Edit Profile</Dropdown.Item>
+              <Dropdown.Item href="#signout">Sign Out</Dropdown.Item>
+            </Dropdown.Menu>
+          </Dropdown>
+        </ul>
       </div>
     </div>
   );
