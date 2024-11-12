@@ -10,6 +10,7 @@ const apikey = "8925502a781648f4443f9e01d96c7ff5";
 const apiURL = "https://api.openweathermap.org/data/2.5/forecast?units=metric&lat=";
 
 const FieldControl = ({ activeDevices }) => {
+    
     const [inputDuration, setInputDuration] = useState('');
     const [isManualMode, setIsManualMode] = useState(false);
     const [isStarted, setIsStarted] = useState(false);
@@ -23,13 +24,14 @@ const FieldControl = ({ activeDevices }) => {
     const [latitude, longitude] = activeDevices.prediction_location.split(", ").map(Number);
 
     // Set initial thresholds from activeDevices
-    useEffect(() => {
-        if (activeDevices.auto_threshold_value?.length > 0) {
-            const thresholds = activeDevices.auto_threshold_value[0];
-            setThreshold1(thresholds.auto_on_threshold || 30);
-            setThreshold2(thresholds.auto_off_threshold || 30);
-        }
-    }, [activeDevices]);
+useEffect(() => {
+    if (activeDevices.auto_threshold_value) {
+        const { auto_on_threshold, auto_off_threshold } = activeDevices.auto_threshold_value;
+        setThreshold1(auto_on_threshold || 30);
+        setThreshold2(auto_off_threshold || 30);
+    }
+}, [activeDevices]);
+
 
     // Fetch forecast weather data for 6 hours ahead
     useEffect(() => {
@@ -117,6 +119,7 @@ const FieldControl = ({ activeDevices }) => {
 
     return (
         <div>
+            <hr className='my-1'></hr>
             <div className="controller">
                 <div className="container">
                     <div className="row pt-2 pb-1">
@@ -219,7 +222,7 @@ const FieldControl = ({ activeDevices }) => {
                                     >
                                         Auto
                                     </button>
-                                    <span className='text-secondary ms-4'>Recommended</span>
+                                    <span className='text-secondary ms-2'>Recommended</span>
                                 </div>
                                 <OverlayTrigger
                                     trigger="click"

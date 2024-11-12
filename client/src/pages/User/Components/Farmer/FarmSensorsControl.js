@@ -1,10 +1,9 @@
 import React from 'react';
 import ProgressChart from './ProgressChart';
-import FieldControl from "./FieldControl";
 
 
 
-const FarmSensorsControl = ({ gauges = [], farmname, activeDevices }) => {
+const FarmSensorsControl = ({ gauges = [], farmname }) => {
     const units = {
         nitrogen: 'kg/ha',
         phosphorus: 'kg/ha',
@@ -17,7 +16,7 @@ const FarmSensorsControl = ({ gauges = [], farmname, activeDevices }) => {
 
 
     return (
-        <div className='borderring'>
+        <div>
             <div className='text-secondary d-flex justify-content-between align-items-center'>
                 <span className='text-dark fs-5 fw-bold'>{upperCase(farmname)}</span>
                 <div className="d-flex align-items-center" aria-live="polite">
@@ -79,10 +78,6 @@ const FarmSensorsControl = ({ gauges = [], farmname, activeDevices }) => {
                         )
                     )}
                 </div>
-            </div>
-            <hr className='m-1' />
-            <div>
-                <FieldControl activeDevices={activeDevices} />
             </div>
         </div>
     );

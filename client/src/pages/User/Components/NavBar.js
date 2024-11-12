@@ -3,7 +3,7 @@ import { Dropdown, OverlayTrigger, Tooltip } from "react-bootstrap";
 import logo from "../Images/logo.png";
 import user from "../Images/farmer.jpg";
 
-const NavBar = ({ notifications }) => {
+const NavBar = () => {
   return (
     <div className="shadow" style={{
       borderBottom: '1px solid grey',
@@ -36,38 +36,10 @@ const NavBar = ({ notifications }) => {
                 overlay={<Tooltip id="call-tooltip">Call: 9876543210</Tooltip>}
               >
                 <a href="#" className="text-decoration-none text-dark">
-                  Call Us <i className="fa-solid fa-phone"></i>
+                  Call Us <i className="fa-solid fa-phone me-2"></i>
                 </a>
               </OverlayTrigger>
             </li>
-
-            {/* Notifications dropdown */}
-            <Dropdown align="end">
-              <Dropdown.Toggle
-                variant="link"
-                className="text-dark text-decoration-none"
-                style={{ cursor: "pointer" }}
-              >
-                Notifications <i className="fa-regular fa-bell"></i>
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                {notifications.slice(0, 10).map((notification, index) => (
-                  <Dropdown.Item
-                    key={index}
-                    className={`d-flex justify-content-between ${index % 2 === 0 ? "bg-light" : "bg-white"
-                      }`}
-                  >
-                    <span className="fw-semibold">{notification.message}</span>
-                    <span
-                      className="text-muted small"
-                      style={{ marginLeft: "20px" }}
-                    >
-                      {notification.time}
-                    </span>
-                  </Dropdown.Item>
-                ))}
-              </Dropdown.Menu>
-            </Dropdown>
           </ul>
 
           {/* User dropdown visible on larger screens */}
@@ -88,7 +60,7 @@ const NavBar = ({ notifications }) => {
           </Dropdown>
         </div>
 
-        {/* Mobile View - show Call, Notifications, and User icon */}
+        {/* Mobile View - show Call and User icon */}
         <ul className="list-unstyled d-flex mb-0 ms-3 d-block d-sm-none w-100 justify-content-end">
           <li className="me-1 d-flex align-items-center">
             {/* Tooltip for Call Us */}
@@ -97,38 +69,10 @@ const NavBar = ({ notifications }) => {
               overlay={<Tooltip id="call-tooltip">Call: 9876543210</Tooltip>}
             >
               <a href="#" className="text-decoration-none text-dark">
-                <i className="fa-solid fa-phone"></i>
+                <i className="fa-solid fa-phone me-2"></i>
               </a>
             </OverlayTrigger>
           </li>
-
-          {/* Notifications dropdown */}
-          <Dropdown align="end">
-            <Dropdown.Toggle
-              variant="link"
-              className="text-dark text-decoration-none mt-1"
-              style={{ cursor: "pointer" }}
-            >
-              <i className="fa-regular fa-bell"></i>
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-              {notifications.slice(0, 10).map((notification, index) => (
-                <Dropdown.Item
-                  key={index}
-                  className={`d-flex justify-content-between ${index % 2 === 0 ? "bg-light" : "bg-white"
-                    }`}
-                >
-                  <span className="fw-semibold">{notification.message}</span>
-                  <span
-                    className="text-muted small"
-                    style={{ marginLeft: "20px" }}
-                  >
-                    {notification.time}
-                  </span>
-                </Dropdown.Item>
-              ))}
-            </Dropdown.Menu>
-          </Dropdown>
 
           {/* User dropdown */}
           <Dropdown style={{ borderLeft: "1px solid grey" }}>

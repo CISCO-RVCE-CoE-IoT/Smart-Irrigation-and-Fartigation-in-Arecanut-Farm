@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import Spinner from "react-bootstrap/Spinner";
+import logo from "./Images/logo.png";
 import "./CSS/User.css";
 import servererror from './Images/server.jpg'
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -10,8 +11,9 @@ import FarmSensorsControl from "./Components/Farmer/FarmSensorsControl";
 import Farms from "./Components/Farmer/Farms";
 import MapContainer from "./Components/Farmer/Map";
 import Sections from "./Components/Farmer/Sections";
-import Logs from "./Components/Farmer/Logs";
 import Modal from "./Components/Farmer/Modal";
+import FieldControl from "./Components/Farmer/FieldControl";
+import LogsGenerator from "./Components/Farmer/logsGenerator";
 
 const User = () => {
   const { id } = useParams();
@@ -35,7 +37,8 @@ const User = () => {
       .then((data) => {
         setRec(data);
         setLoading(false);
-        // console.log(data);
+
+        
 
       })
       .catch((error) => {
@@ -64,8 +67,20 @@ const User = () => {
   if (error) {
     return (
       <div className="d-flex flex-column align-items-center justify-content-center vh-100 vw-100 text-center">
+          <a href="/" className="d-flex align-items-center text-decoration-none">
+          <img
+            src={logo}
+            alt="logo"
+            className="me-3"
+            style={{ width: "25px" }}
+          />
+          <span className="fs-4 fw-semibold text-dark d-none d-sm-block">
+            Smart Irrigation & Fartigation
+          </span>
+        </a>
+        <br></br>
+        <p className="fs-5 text-secondary" style={{fontFamily:'unset'}} >{error}</p>
         <img src={servererror} width={250} alt="Server Error" /> <br></br>
-        <p>{error}</p>
       </div>
     );
   }
@@ -85,6 +100,8 @@ const User = () => {
 
     return recentValues.length;
   }
+
+  const collected_data = rec;
 
 
   const famer_details = rec?.farmer_details;
@@ -110,8 +127,6 @@ const User = () => {
 
   const farm_name = rec?.farm_details.farm_name;  
 
-  
-
   const total_and_active_farm_devices = {
     total_device: total_devices,
     total_active_devices: total_active_count,
@@ -119,14 +134,7 @@ const User = () => {
     prediction_location: prediction_location
   }
 
-  const notifications = [
-    { message: "New crop update available", time: "10:30 AM" },
-    { message: "Water levels low in field", time: "09:15 AM" },
-    { message: "Fertilizer reminder", time: "Yesterday" },
-    { message: "Weather alert: Rain tomorrow", time: "2 days ago" },
-    { message: "Soil pH adjustment needed", time: "3 days ago" },
-  ];
-
+  
 
   const timelineChartData = {
     labels: ['2024-11-01', '2024-11-02', '2024-11-03'],
@@ -145,13 +153,12 @@ const User = () => {
 
 
 
-
   const handleCloseModal = () => setShowModal(false);
 
   return (
     <main>
       <header className="fixed-top">
-        <NavBar notifications={notifications} />
+        <NavBar />
       </header>
       {/* <div>
         <div className="mt-5 ">
@@ -185,19 +192,18 @@ const User = () => {
           </aside>
           <section className="col-12 col-md-9">
             <div className="d-flex flex-column align-items-center">
-              <div className="col-12 mb-3">
-                <FarmSensorsControl gauges={farm_devices_data} farmname={farm_name}  activeDevices={total_and_active_farm_devices} />
+              <div className="col-12 mb-3 borderring">
+                <FarmSensorsControl gauges={farm_devices_data} farmname={farm_name} />
+                <FieldControl activeDevices={total_and_active_farm_devices}/>
               </div>
               <div className="col-12">
                 <MapContainer locationCoordinates={locationCoordinates} device_values={device_values} />
-
-
               </div>
               <div className="col-12 my-3">
                 <Sections sectionsData={section_data} />
               </div>
-              <div className="col-12 ">
-                {/* <Logs logs={logs} /> */}
+              <div className="col-12">
+                <LogsGenerator data={collected_data}/>
               </div>
             </div>
           </section>

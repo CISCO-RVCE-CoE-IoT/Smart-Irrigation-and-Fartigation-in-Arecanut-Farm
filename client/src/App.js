@@ -16,7 +16,7 @@ function App() {
     <Routes>
       <Route path='/user' element={<Home />}/>
       <Route path='/admin' element={<Admin />}/>
-      <Route path='/f/:id' element={<User />}/>
+      <Route path='/farmer/:id' element={<User />}/>
     </Routes>
     </div>
   );
