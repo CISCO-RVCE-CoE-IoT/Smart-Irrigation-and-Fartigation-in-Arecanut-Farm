@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react';
 
-const ProgressChart = ({ value, name,unit }) => {
+const ProgressChart = ({ value, name, unit }) => {
     const defaultSize = 160; // Default size for the chart
     const radius = defaultSize / 2;
     const circumference = Math.PI * (radius - 8); // Half-circle circumference
     const [progress, setProgress] = useState(0);
 
+    // Ensure the value is not null, default to 0 if null
+    const validValue = value ?? 0; 
+
     useEffect(() => {
-        // Trigger animation to target value
-        setProgress((circumference * value) / 100);
-    }, [value, circumference]);
+        // Trigger animation to target valid value
+        setProgress((circumference * validValue) / 100);
+    }, [validValue, circumference]);
 
     return (
         <div
@@ -61,8 +64,9 @@ const ProgressChart = ({ value, name,unit }) => {
                     textAlign: 'center',
                 }}
             >
-                <div style={{ fontSize: '1.05em', fontWeight: 'bold', marginTop: '16px' }}>{value} 
-                    <span style={{fontSize:'0.75rem'}} className='text-secondary'> {unit}</span>
+                <div style={{ fontSize: '1.05em', fontWeight: 'bold', marginTop: '16px' }}>
+                    {validValue} 
+                    <span style={{ fontSize: '0.75rem' }} className='text-secondary'> {unit}</span>
                 </div>
                 <div style={{ fontSize: '0.8em', color: '#555' }} className='m-0'>{name}</div>
             </div>

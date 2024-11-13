@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import Spinner from "react-bootstrap/Spinner";
 import logo from "./Images/logo.png";
 import "./CSS/User.css";
-import servererror from './Images/server.jpg'
+import servererror from './Images/server.jpg';
 import "bootstrap/dist/css/bootstrap.min.css";
 import NavBar from "./Components/NavBar";
 import Farmer from "./Components/Farmer/Farmer";
@@ -14,6 +14,7 @@ import Sections from "./Components/Farmer/Sections";
 import Modal from "./Components/Farmer/Modal";
 import FieldControl from "./Components/Farmer/FieldControl";
 import LogsGenerator from "./Components/Farmer/logsGenerator";
+import ErrorComponent from "../ErrorComponent";
 
 const User = () => {
   const { id } = useParams();
@@ -22,6 +23,8 @@ const User = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [chartType, setChartType] = useState('timeline');
+  const [selectedFarmDetails, setSelectedFarmDetails] = useState(null);
+  const [farmDetailsLoading, setFarmDetailsLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
@@ -37,9 +40,6 @@ const User = () => {
       .then((data) => {
         setRec(data);
         setLoading(false);
-
-        
-
       })
       .catch((error) => {
         console.error("Error fetching user data:", error);
@@ -48,110 +48,60 @@ const User = () => {
       });
   }, [id]);
 
+  const handleSelectedFarmDetails = (details) => {
+    setFarmDetailsLoading(true); // Start loading for farm details
+    setSelectedFarmDetails(details);
+    setFarmDetailsLoading(false); // End loading when details are set
+  };
+
+  const farm_details = selectedFarmDetails;
+  console.log(farm_details);
+
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
-        <Spinner
-          animation="border"
-          variant="secondary"
-          role="status"
-          style={{ width: "5rem", height: "5rem" }} 
-        >
-          <span className="sr-only">Loading...</span>
-        </Spinner>
-      </div>
+      <main>
+        <header className="fixed-top">
+          <NavBar />
+        </header>
+        <div className="container mt-5 pt-4 pb-4">
+          <div className="row">
+            <aside className="col-12 col-md-3 mb-4">
+              <div className="shimmer shimmer-placeholder borderring" style={{ height: "150px" }}></div>
+              <div className="shimmer shimmer-placeholder borderring mt-3" style={{ height: "200px" }}></div>
+            </aside>
+            <section className="col-12 col-md-9">
+              <div className="d-flex flex-column align-items-center">
+                <div className="shimmer shimmer-placeholder col-12 mb-3 borderring" style={{ height: "200px" }}></div>
+                <div className="shimmer shimmer-placeholder col-12 borderring" style={{ height: "300px" }}></div>
+                <div className="shimmer shimmer-placeholder col-12 my-3 borderring " style={{ height: "250px" }}></div>
+                <div className="shimmer shimmer-placeholder col-12 borderring" style={{ height: "150px" }}></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
     );
   }
-  
 
   if (error) {
     return (
-      <div className="d-flex flex-column align-items-center justify-content-center vh-100 vw-100 text-center">
-          <a href="/" className="d-flex align-items-center text-decoration-none">
-          <img
-            src={logo}
-            alt="logo"
-            className="me-3"
-            style={{ width: "25px" }}
-          />
-          <span className="fs-4 fw-semibold text-dark d-none d-sm-block">
-            Smart Irrigation & Fartigation
-          </span>
-        </a>
-        <br></br>
-        <p className="fs-5 text-secondary" style={{fontFamily:'unset'}} >{error}</p>
-        <img src={servererror} width={250} alt="Server Error" /> <br></br>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '80vh',
+        }}
+      >
+        <ErrorComponent />
       </div>
     );
   }
-  
-
-
-  function countRecentMoistureValues(moistureDeviceValues) {
-    const currentTimestamp = new Date();
-    const oneHourInMillis = 60 * 60 * 1000; // 1 hour in milliseconds
-
-    const recentValues = moistureDeviceValues.filter(item => {
-      const itemTimestamp = new Date(item.timestamp);
-      const timeDifference = currentTimestamp - itemTimestamp;
-
-      return timeDifference <= oneHourInMillis;
-    });
-
-    return recentValues.length;
-  }
-
-  const collected_data = rec;
-
-
-  const famer_details = rec?.farmer_details;
-  const farm_details = rec?.farmer_farms;
-
-  const locationCoordinates = rec?.location_coordinates;
-  const device_values = rec?.device_values
-
-
-  
-  const prediction_location = rec?.location_coordinates.farm_device[0].device_location;
-
-  const farm_devices_data = rec?.device_values.farm_device_data;
-
-  const section_data = rec?.device_values.valve_devices_data;
-
-  const total_devices = rec?.location_coordinates.section_device.length + 1;
-  const active_counting = rec?.device_values.moisture_device_value;
-
-
-  const total_active_count = countRecentMoistureValues(active_counting);
-  const auto_threshold_value = rec?.farm_details;
-
-  const farm_name = rec?.farm_details.farm_name;  
-
-  const total_and_active_farm_devices = {
-    total_device: total_devices,
-    total_active_devices: total_active_count,
-    auto_threshold_value: auto_threshold_value,
-    prediction_location: prediction_location
-  }
-
-  
-
-  const timelineChartData = {
-    labels: ['2024-11-01', '2024-11-02', '2024-11-03'],
-    values: [10, 20, 30],
-  };
-
-  const lineChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-    values: [12, 19, 3, 5, 2],
-  };
 
   const handleOpenModal = (type) => {
     setChartType(type);
     setShowModal(true);
   };
-
-
 
   const handleCloseModal = () => setShowModal(false);
 
@@ -160,51 +110,51 @@ const User = () => {
       <header className="fixed-top">
         <NavBar />
       </header>
-      {/* <div>
-        <div className="mt-5 ">
-          <button onClick={() => handleOpenModal('timeline')}>Open Timeline Chart Modal</button>
-          <button onClick={() => handleOpenModal('line')}>Open Line Chart Modal</button>
-
-          <Modal
-            show={showModal}
-            handleClose={handleCloseModal}
-            chartData={chartType === 'timeline' ? timelineChartData : lineChartData}
-            chartType={chartType}
-          />
-        </div>
-      </div> */}
-      <div className="container mt-5 pt-4 pb-4">
+      <div className="container mt-4 pt-5 pb-4">
         <div className="row">
           <aside className="col-12 col-md-3 mb-4">
-            <div style={{ position: "sticky", top: "72px", zIndex: 1000 }}>
-              <div className="borderring" >
+            <div style={{ position: "sticky",top:'72px' ,zIndex: 1000 }}>
+              <div className="borderring">
                 <div className="farmerDetails">
-                  <Farmer farmer_Details={famer_details} />
+                  <Farmer farmer_Details={rec} />
                 </div>
               </div>
               <div className="p-3 borderring mt-3">
                 <div className="FarmSensorsControl">
-                  <Farms farmDetails={farm_details} />
+                  <Farms 
+                    farmDetails={rec} 
+                    onFarmDetailsSelected={handleSelectedFarmDetails}
+                  />
                 </div>
               </div>
             </div>
-
           </aside>
           <section className="col-12 col-md-9">
             <div className="d-flex flex-column align-items-center">
-              <div className="col-12 mb-3 borderring">
-                <FarmSensorsControl gauges={farm_devices_data} farmname={farm_name} />
-                <FieldControl activeDevices={total_and_active_farm_devices}/>
-              </div>
-              <div className="col-12">
-                <MapContainer locationCoordinates={locationCoordinates} device_values={device_values} />
-              </div>
-              <div className="col-12 my-3">
-                <Sections sectionsData={section_data} />
-              </div>
-              <div className="col-12">
-                <LogsGenerator data={collected_data}/>
-              </div>
+              {farmDetailsLoading ? (
+                <>
+                  <div className="shimmer shimmer-placeholder col-12 mb-3 borderring" style={{ height: "200px" }}></div>
+                  <div className="shimmer shimmer-placeholder col-12 borderring" style={{ height: "300px" }}></div>
+                  <div className="shimmer shimmer-placeholder col-12 my-3 borderring " style={{ height: "250px" }}></div>
+                  <div className="shimmer shimmer-placeholder col-12 borderring" style={{ height: "150px" }}></div>
+                </>
+              ) : (
+                <>
+                  <div className="col-12 mb-3 borderring">
+                    <FarmSensorsControl collected_data={farm_details} />
+                    <FieldControl collected_data={farm_details} />
+                  </div>
+                  <div className="col-12">
+                    <MapContainer collected_data={farm_details} />
+                  </div>
+                  <div className="col-12 my-3">
+                    <Sections collected_data={farm_details} />
+                  </div>
+                  <div className="col-12">
+                    <LogsGenerator data={farm_details} />
+                  </div>
+                </>
+              )}
             </div>
           </section>
         </div>

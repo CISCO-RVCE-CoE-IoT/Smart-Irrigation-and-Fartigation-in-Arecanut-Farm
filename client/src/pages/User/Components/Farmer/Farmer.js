@@ -2,6 +2,9 @@ import React from 'react';
 import farmer from "../Images/farmer.jpg";
 
 const Farmer = ({ farmer_Details }) => {
+
+  const famer_details = farmer_Details?.farmer_details;
+
     const imageStyle = {
         width: "5rem",
         height: "5rem",
@@ -35,13 +38,13 @@ const Farmer = ({ farmer_Details }) => {
             </div>
             <div className="mx-3 d-flex flex-column">
                 <h4 className="fw-bold mb-1">
-                    {upperCase(farmer_Details.farmer_fname)}
+                    {upperCase(famer_details.farmer_fname)}
                 </h4>
                 <small className="text-secondary mb-1">
-                    Id : U2024{farmer_Details.farmer_id}
+                    Id : U2024{famer_details.farmer_id}
                 </small>
                 <small>
-                    Total fields : <strong className='fs-6 px-1'>{farmer_Details.farmer_total_farms}</strong>
+                    Total fields : <strong className='fs-6 px-1'>{famer_details.farmer_total_farms}</strong>
                 </small>
             </div>
         </div>

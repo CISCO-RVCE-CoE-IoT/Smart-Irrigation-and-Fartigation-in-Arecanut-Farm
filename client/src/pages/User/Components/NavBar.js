@@ -11,16 +11,16 @@ const NavBar = () => {
       backdropFilter: 'blur(4px)'
     }}>
 
-      <div className="container-lg d-flex justify-content-between align-items-center py-1">
+      <div className="container-lg d-flex justify-content-between align-items-center px-3 py-1">
         {/* Logo and title */}
         <a href="/" className="d-flex align-items-center text-decoration-none">
           <img
             src={logo}
             alt="logo"
             className="me-2"
-            style={{ width: "25px" }}
+            style={{ width: "22px" }}
           />
-          <span className="fs-5 fw-semibold text-dark d-none d-sm-block">
+          <span className="fs-5 fw-semibold d-none d-sm-block" style={{color:'#323232'}}>
             Smart Irrigation & Fartigation
           </span>
         </a>

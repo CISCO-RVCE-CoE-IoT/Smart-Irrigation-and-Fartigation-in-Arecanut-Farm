@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css'; // Ensure Bootstrap is imported
+import 'bootstrap/dist/css/bootstrap.min.css';
 
-// OpenWeather API
 const apiKey = '8925502a781648f4443f9e01d96c7ff5';
 const apiURL = 'https://api.openweathermap.org/data/2.5/weather?units=metric&lat=';
 
-// Helper function to format time ago
 const timeAgo = (timestamp) => {
   const now = new Date();
   const diff = now - new Date(timestamp);
@@ -20,133 +18,111 @@ const timeAgo = (timestamp) => {
 
 const LogsGenerator = ({ data }) => {
   const [logs, setLogs] = useState([]);
-  const [weatherLogs, setWeatherLogs] = useState(new Set()); // Use a Set to hold weather logs
-  const [extremeMoistureLogs, setExtremeMoistureLogs] = useState(new Set()); // Use a Set to hold extreme moisture logs
-  const [extremeWeatherLogs, setExtremeWeatherLogs] = useState(new Set()); // Use a Set to hold extreme weather logs
 
   useEffect(() => {
-    const generatedLogs = [];
+    if (!data) return;
 
-    // Add logs for NPK values
-    data.device_values.farm_device_data.forEach((device) => {
-      generatedLogs.push({
-        title: `NPK Values: Nitrogen: ${device.nitrogen}, Phosphorus: ${device.phosphorus}, Potassium: ${device.potassium}`,
-        timestamp: device.timestamp,
-      });
-    });
+    const uniqueLogs = new Set();
+    const weatherDataCache = new Set();
+    const npkCache = new Set();
+    const valveCache = new Set();
+    let generatedLogs = [];
 
-    // Add logs for valve status
-    data.device_values.valve_devices_data.forEach((valve) => {
-      generatedLogs.push({
-        title: `Valve Status for Section ${valve.section_name}: ${valve.valve_status} (Mode: ${valve.valve_mode})`,
-        timestamp: valve.valve_timestamp,
-      });
-    });
-
-    setLogs(generatedLogs);
-
-    // Check for extreme moisture values (low and high)
-    const extremeMoisture = data.device_values.moisture_device_value.filter((moisture) => {
-      return moisture.moisture_value <= 30 || moisture.moisture_value >= 80; // Extreme moisture values: Low (<30%) or High (>80%)
-    });
-
-    // Create logs for extreme moisture values and store them in a Set
-    extremeMoisture.forEach((moisture) => {
-      const moistureLog = {
-        title: `Moisture Value for Section ${moisture.section_id}: ${moisture.moisture_value}%`,
-        timestamp: moisture.timestamp,
-      };
-      setExtremeMoistureLogs((prevLogs) => new Set(prevLogs.add(JSON.stringify(moistureLog)))); // Convert object to string to ensure uniqueness
-    });
-
-    // Fetch weather prediction for each farm
-    const weatherDataCache = {}; // Cache to avoid duplicate entries
-
-    data.farmer_farms.forEach(async (farm) => {
-      const [lat, lon] = farm.farm_location.split(',').map(coord => parseFloat(coord.trim()));
+    const fetchWeatherData = async (coordinates) => {
+      const [lat, lon] = coordinates.split(',').map(coord => parseFloat(coord.trim()));
       const weatherData = await fetch(`${apiURL}${lat}&lon=${lon}&appid=${apiKey}`)
         .then(response => response.json())
         .catch(err => console.error(err));
-
-      if (weatherData) {
+      
+      if (weatherData && weatherData.weather) {
         const weatherLog = {
-          title: `Weather Prediction for ${farm.farm_name}: ${weatherData.weather[0].description}, Temp: ${weatherData.main.temp}°C`,
+          title: `Weather Prediction: ${weatherData.weather[0].description}, Temp: ${weatherData.main.temp}°C`,
           timestamp: new Date().toISOString(),
         };
-
-        // Check if this weather data has already been added
-        const cacheKey = `${farm.farm_name}_${weatherData.weather[0].description}_${weatherData.main.temp}`;
-        if (!weatherDataCache[cacheKey]) {
-          weatherDataCache[cacheKey] = true;
-          setWeatherLogs((prevLogs) => new Set(prevLogs.add(JSON.stringify(weatherLog)))); // Ensure uniqueness by stringifying
-          
-          // Check for extreme weather conditions (hot and cold)
-          if (weatherData.main.temp > 35) { // Hot weather (above 35°C)
-            const extremeHeatLog = {
-              title: `Extreme Heat for ${farm.farm_name}: Temp: ${weatherData.main.temp}°C`,
+        const cacheKey = `${coordinates}_${weatherData.weather[0].description}_${weatherData.main.temp}`;
+        if (!weatherDataCache.has(cacheKey)) {
+          weatherDataCache.add(cacheKey);
+          addUniqueLog(weatherLog);
+          if (weatherData.main.temp > 35) {
+            addUniqueLog({
+              title: `Extreme Heat Alert: Temp ${weatherData.main.temp}°C`,
               timestamp: weatherLog.timestamp,
-            };
-            setExtremeWeatherLogs((prevLogs) => new Set(prevLogs.add(JSON.stringify(extremeHeatLog)))); // Add to Set
-          } else if (weatherData.main.temp < 5) { // Cold weather (below 5°C)
-            const extremeColdLog = {
-              title: `Extreme Cold for ${farm.farm_name}: Temp: ${weatherData.main.temp}°C`,
+            });
+          } else if (weatherData.main.temp < 5) {
+            addUniqueLog({
+              title: `Extreme Cold Alert: Temp ${weatherData.main.temp}°C`,
               timestamp: weatherLog.timestamp,
-            };
-            setExtremeWeatherLogs((prevLogs) => new Set(prevLogs.add(JSON.stringify(extremeColdLog)))); // Add to Set
+            });
           }
         }
       }
-    });
+    };
+
+    const addUniqueLog = (log) => {
+      const logKey = `${log.title}_${log.timestamp}`;
+      if (!uniqueLogs.has(logKey)) {
+        uniqueLogs.add(logKey);
+        generatedLogs.push(log);
+      }
+    };
+
+    if (data.device_values?.farm_device_data) {
+      data.device_values.farm_device_data.forEach((device) => {
+        const npkLog = {
+          title: `NPK Levels - N: ${device.nitrogen}, P: ${device.phosphorus}, K: ${device.potassium}`,
+          timestamp: device.timestamp,
+        };
+        if (!npkCache.has(JSON.stringify(npkLog))) {
+          addUniqueLog(npkLog);
+          npkCache.add(JSON.stringify(npkLog));
+        }
+      });
+    }
+
+    if (data.device_values?.valve_devices_data) {
+      data.device_values.valve_devices_data.forEach((valve) => {
+        const valveLog = {
+          title: `Valve Status for ${valve.section_name}: ${valve.valve_status} (Mode: ${valve.valve_mode})`,
+          timestamp: valve.valve_timestamp,
+        };
+        if (!valveCache.has(JSON.stringify(valveLog))) {
+          addUniqueLog(valveLog);
+          valveCache.add(JSON.stringify(valveLog));
+        }
+      });
+    }
+
+    if (data.location_coordinates?.farm_coordinates) {
+      Promise.all(
+        data.location_coordinates.farm_coordinates.map(coord => fetchWeatherData(coord))
+      ).then(() => setLogs(generatedLogs));
+    } else {
+      setLogs(generatedLogs);
+    }
   }, [data]);
+
+  const farm_name = data?.farm_details.farm_name;
+
+  const upperCase = (name) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+
 
   return (
     <div className='borderring p-3'>
-      <h5 className='text-secondary fs-5 fs-md-3 fs-lg-2'>Logs</h5>
+      <h5 className='text-secondary' style={{ fontSize: '14px' }}>{upperCase(farm_name)} Logs</h5>
       <table className="table table-hover">
         <thead>
           <tr>
-            <th className="fs-6 fs-md-5 fs-lg-4">Title</th>
-            <th className="fs-6 fs-md-5 fs-lg-4">Time Ago</th>
+            <th style={{ fontSize: '0.875rem' }}>Title</th>
+            <th style={{ fontSize: '0.875rem' }}>Time Ago</th>
           </tr>
         </thead>
         <tbody>
-          {/* Render Logs from NPK and Valve status */}
           {logs.map((log, index) => (
             <tr key={index}>
-              <td className="fs-6 fs-md-5 fs-lg-4">{log.title}</td>
-              <td className="fs-6 fs-md-5 fs-lg-4">{timeAgo(log.timestamp)}</td>
+              <td style={{ fontSize: '0.875rem' }}>{log.title}</td>
+              <td style={{ fontSize: '0.875rem' }}>{timeAgo(log.timestamp)}</td>
             </tr>
           ))}
-          {/* Render Extreme Moisture Logs (Low or High Moisture) */}
-          {[...extremeMoistureLogs].map((logStr, index) => {
-            const log = JSON.parse(logStr); // Convert back to object
-            return (
-              <tr key={`extreme-moisture-${index}`}>
-                <td className="fs-6 fs-md-5 fs-lg-4">{log.title}</td>
-                <td className="fs-6 fs-md-5 fs-lg-4">{timeAgo(log.timestamp)}</td>
-              </tr>
-            );
-          })}
-          {/* Render Extreme Weather Logs (Hot or Cold Weather) */}
-          {[...extremeWeatherLogs].map((logStr, index) => {
-            const log = JSON.parse(logStr); // Convert back to object
-            return (
-              <tr key={`extreme-weather-${index}`}>
-                <td className="fs-6 fs-md-5 fs-lg-4">{log.title}</td>
-                <td className="fs-6 fs-md-5 fs-lg-4">{timeAgo(log.timestamp)}</td>
-              </tr>
-            );
-          })}
-          {/* Render Weather Logs */}
-          {[...weatherLogs].map((logStr, index) => {
-            const log = JSON.parse(logStr); // Convert back to object
-            return (
-              <tr key={`weather-${index}`}>
-                <td className="fs-6 fs-md-5 fs-lg-4">{log.title}</td>
-                <td className="fs-6 fs-md-5 fs-lg-4">{timeAgo(log.timestamp)}</td>
-              </tr>
-            );
-          })}
         </tbody>
       </table>
     </div>
