@@ -32,23 +32,23 @@ router.get('/:farmer_id', async (req, res) => {
             return res.status(404).send({ error: "No Farm found for the provided ID" });
         }
 
-        const a_farm_id = all_farms.rows[0].farm_id;
+        // const a_farm_id = all_farms.rows[0].farm_id;
 
-        const a_farm_details = await farm_details(a_farm_id);
-        const a_farm_locations = await farm_locations(a_farm_id);
-        const all_devices = await all_section_devices(a_farm_id);
-        const all_sensor_values_data = await all_sensor_values(a_farm_id)
+        // const a_farm_details = await farm_details(a_farm_id);
+        // const a_farm_locations = await farm_locations(a_farm_id);
+        // const all_devices = await all_section_devices(a_farm_id);
+        // const all_sensor_values_data = await all_sensor_values(a_farm_id);
 
         res.status(200).send({
             farmer_details: farmer_details.rows[0],
             farmer_farms: all_farms.rows,
-            farm_details: a_farm_details,
-            location_coordinates: {
-                farm_coordinates: a_farm_locations.farm_location_cordinates,
-                farm_device: all_devices.farm_devices,
-                section_device: all_devices.section_devices
-            },
-            device_values: all_sensor_values_data
+            // farm_details: a_farm_details,
+            // location_coordinates: {
+            //     farm_coordinates: a_farm_locations.farm_location_cordinates,
+            //     farm_device: all_devices.farm_devices,
+            //     section_device: all_devices.section_devices
+            // },
+            // device_values: all_sensor_values_data
         });
 
     } catch (error) {
@@ -118,21 +118,24 @@ router.get('/farm/:farm_id', async (req, res) => {
     try {
         const { farm_id } = req.params;
 
-        const a_farm_locations = await farm_locations(farm_id);
+        const farm_loc = await farm_locations(farm_id);
 
-        if (a_farm_locations.rowCount === 0) {
+        if (farm_loc.rowCount === 0) {
             return res.status(404).send({ error: "No Farm found for the provided ID" });
         }
 
         const farm_detail = await farm_details(farm_id);
         const all_devices = await all_section_devices(farm_id);
-        const all_sensor_values_data = await all_sensor_values(farm_id)
+        const all_sensor_values_data = await all_sensor_values(farm_id);
 
         res.status(200).send({
             farm_details: farm_detail,
-            farm_cordinates: a_farm_locations.farm_location_cordinates,
-            all_devices: all_devices,
-            all_sensor_values: all_sensor_values_data
+            location_coordinates: {
+                farm_coordinates: farm_loc.farm_location_cordinates,
+                farm_device: all_devices.farm_devices,
+                section_device: all_devices.section_devices
+            },
+            device_values: all_sensor_values_data
         });
 
     } catch (error) {
