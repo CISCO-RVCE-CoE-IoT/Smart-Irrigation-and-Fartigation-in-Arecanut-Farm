@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ProgressChart from './ProgressChart';
 
-const FarmSensorsControl = ({ collected_data = [] }) => {
+const FarmSensorsControl = ({ collected_data = [] ,farmer_details}) => {
   const farm_devices_data = collected_data?.device_values?.farm_device_data || [];
+  const farm_id = collected_data?.farm_details?.farm_id;
+  console.log(farm_id);
+  
   const farmname = collected_data?.farm_details?.farm_name || "Farm Name Not Available";
 
   const units = {
@@ -19,10 +22,70 @@ const FarmSensorsControl = ({ collected_data = [] }) => {
   // Handle the case when farm_devices_data is empty or timestamp is missing
   const lastUpdated = farm_devices_data.length > 0 ? new Date(farm_devices_data[0]?.timestamp).toLocaleString() : 'N/A';
 
+  // State to handle editable farm name
+  const [isEditing, setIsEditing] = useState(false);
+  const [newFarmName, setNewFarmName] = useState(farmname);
+
+  const handleFarmNameChange = (event) => {
+    setNewFarmName(event.target.value);
+  };
+
+  const saveFarmName = async () => {
+    try {
+      // Send PUT request to update farm name
+      const response = await fetch(`http://192.168.182.212:3000/farm/farm_name/${farm_id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ farm_name: newFarmName }),
+      });
+
+      // Check if the response is successful
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Farm name updated successfully:', result);
+        setIsEditing(false); // Exit editing mode after successful save
+      } else {
+        const error = await response.json();
+        console.log('Failed to update farm name:', error);
+      }
+    } catch (error) {
+      console.error('Error updating farm name:', error);
+    }
+  };
+  
   return (
     <div>
       <div className='text-secondary d-flex justify-content-between align-items-center'>
-        <span className='text-dark fs-5 fw-bold'>{upperCase(farmname)}</span>
+        <div>
+          {isEditing ? (
+            <div>
+              <input
+                type="text"
+                value={newFarmName}
+                onChange={handleFarmNameChange}
+                className="form-control"
+                style={{ width: '200px', display: 'inline',height:'35px' }}
+              />
+              <button
+                onClick={saveFarmName}
+                className="btn btn-outline-secondary btn-sm ms-2"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <div>
+              <span className='text-dark fs-5 fw-bold'>{upperCase(newFarmName)}</span>
+              <i
+                className="fa-solid fa-pencil ms-2"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setIsEditing(true)}
+              />
+            </div>
+          )}
+        </div>  
         <div className="d-flex align-items-center" aria-live="polite">
           <span className="fw-bold text-dark">Active</span>
           <div

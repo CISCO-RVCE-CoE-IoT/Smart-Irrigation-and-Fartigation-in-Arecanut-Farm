@@ -35,12 +35,12 @@ const MapContainer = ({ collected_data }) => {
     }, []);
 
     useEffect(() => {
-        console.log("Initializing map with coordinates", locationCoordinates);
+        // console.log("Initializing map with coordinates", locationCoordinates);
     
         // Check if locationCoordinates and device_values are available
         if (!locationCoordinates || !device_values || !mapRef.current) return;
     
-        console.log("Map container available, initializing...");
+        // console.log("Map container available, initializing...");
     
         // Clean up existing map instance if any
         if (mapInstance.current) {

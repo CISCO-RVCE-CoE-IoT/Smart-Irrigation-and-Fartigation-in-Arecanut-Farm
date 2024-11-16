@@ -7,11 +7,10 @@ const NavBar = () => {
   return (
     <div className="shadow" style={{
       borderBottom: '1px solid grey',
-      backgroundColor: 'rgba(255, 255, 255, 0.09)',
-      backdropFilter: 'blur(4px)'
+      backgroundColor: 'rgba(255, 255, 255, 1)',
     }}>
 
-      <div className="container-lg d-flex justify-content-between align-items-center px-3 py-1">
+      <div className="container-lg d-flex justify-content-between align-items-center px-3 py-1 ">
         {/* Logo and title */}
         <a href="/" className="d-flex align-items-center text-decoration-none">
           <img
@@ -20,7 +19,7 @@ const NavBar = () => {
             className="me-2"
             style={{ width: "22px" }}
           />
-          <span className="fs-5 fw-semibold d-none d-sm-block" style={{color:'#323232'}}>
+          <span className="fs-5 fw-semibold d-none d-sm-block" style={{ color: '#323232' }}>
             Smart Irrigation & Fartigation
           </span>
         </a>
@@ -29,7 +28,7 @@ const NavBar = () => {
         <div className="d-flex align-items-center">
           {/* For larger screens */}
           <ul className="list-unstyled d-flex mb-0 me-1 d-none d-sm-flex">
-            <li className="me-2 d-flex align-items-center">
+            <li className=" d-flex align-items-center">
               {/* Tooltip for Call Us */}
               <OverlayTrigger
                 placement="bottom"
@@ -48,7 +47,7 @@ const NavBar = () => {
               <img
                 src={user}
                 alt="user profile"
-                className="rounded-circle border border-secondary"
+                className="rounded-circle border"
                 style={{ width: "30px", height: "30px" }}
               />
             </Dropdown.Toggle>
@@ -80,7 +79,7 @@ const NavBar = () => {
               <img
                 src={user}
                 alt="user profile"
-                className="rounded-circle border border-secondary"
+                className="rounded-circle border"
                 style={{ width: "30px", height: "30px" }}
               />
             </Dropdown.Toggle>

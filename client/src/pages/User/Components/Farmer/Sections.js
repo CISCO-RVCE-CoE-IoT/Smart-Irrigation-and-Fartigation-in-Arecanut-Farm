@@ -246,7 +246,6 @@ const Sections = ({ collected_data = {} }) => {
                 </div>
             </div>
 
-            {/* Modal for displaying more charts */}
             <Modal show={showModal} onHide={handleClose} size="lg">
                 <Modal.Header closeButton>
                     <Modal.Title>Moisture Charts</Modal.Title>
@@ -254,26 +253,33 @@ const Sections = ({ collected_data = {} }) => {
                 <Modal.Body>
                     <div className="row p-2">
                         <div className="col-lg-4 col-sm-6 chart-container">
+                            <h6 className="text-center">Bar Chart</h6>
                             <Bar data={chartData} />
                         </div>
                         <div className="col-lg-4 col-sm-6 chart-container">
+                            <h6 className="text-center">Line Chart</h6>
                             <Line data={chartData} />
                         </div>
                         <div className="col-lg-4 col-sm-6 chart-container">
+                            <h6 className="text-center">Radar Chart</h6>
                             <Radar data={chartData} />
                         </div>
                         <div className="col-lg-4 col-sm-6 chart-container">
+                            <h6 className="text-center">Doughnut Chart</h6>
                             <Doughnut data={chartData} />
                         </div>
                         <div className="col-lg-4 col-sm-6 chart-container">
+                            <h6 className="text-center">Pie Chart</h6>
                             <Pie data={chartData} />
                         </div>
                         <div className="col-lg-4 col-sm-6 chart-container">
+                            <h6 className="text-center">Polar Area Chart</h6>
                             <PolarArea data={chartData} />
                         </div>
                     </div>
                 </Modal.Body>
             </Modal>
+
 
         </div>
     );

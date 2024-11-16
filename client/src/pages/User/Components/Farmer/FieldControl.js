@@ -11,6 +11,15 @@ const apiURL = "https://api.openweathermap.org/data/2.5/forecast?units=metric&la
 
 const FieldControl = ({collected_data}) => {
 
+  function recomendation(collected_data) {
+    const totalmoisture = collected_data.device_values.valve_devices_data.reduce((sum, device) => sum + device.avg_section_moisture, 0);
+    const avgMoisture = totalmoisture / collected_data.device_values.valve_devices_data.length;
+  
+    const isAnyMoistureLow = collected_data.device_values.valve_devices_data.some(device => device.avg_section_moisture < avgMoisture);
+  
+    setRecomendation(isAnyMoistureLow);
+  }
+
   function countRecentMoistureValues(moistureDeviceValues) {
     const currentTimestamp = new Date();
     const oneHourInMillis = 60 * 60 * 1000; 
@@ -28,7 +37,7 @@ const FieldControl = ({collected_data}) => {
   const active_counting = collected_data?.device_values.moisture_device_value;
   const total_active_count = countRecentMoistureValues(active_counting);
 
-  const total_devices = collected_data?.location_coordinates.section_device.length + 1;
+  const total_devices = collected_data?.location_coordinates.section_device.length ;
   const prediction_location = collected_data?.location_coordinates?.farm_device?.[0]?.device_location;
   const auto_threshold_value = collected_data?.farm_details;
 
@@ -47,6 +56,8 @@ const FieldControl = ({collected_data}) => {
   const [forecastData, setForecastData] = useState(null);
   const [isEditingThreshold1, setIsEditingThreshold1] = useState(false);
   const [isEditingThreshold2, setIsEditingThreshold2] = useState(false);
+  const [recomended, setRecomendation] = useState(false);
+
 
   const [latitude, longitude] = activeDevices.prediction_location 
   ? activeDevices.prediction_location.split(", ").map(Number)
@@ -101,6 +112,10 @@ const FieldControl = ({collected_data}) => {
 
   const upperCase = (name) => name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 
+  useEffect(() => {
+    recomendation(collected_data);
+  }, [collected_data]);
+  
   const manualPopover = (
     <Popover id="popover-manual">
       <Popover.Body>
@@ -142,6 +157,8 @@ const FieldControl = ({collected_data}) => {
     </Popover>
   );
 
+
+
   return (
     <div>
       <hr className='my-1'></hr>
@@ -150,7 +167,7 @@ const FieldControl = ({collected_data}) => {
           <div className="row pt-2 pb-1">
             <div className="col-12 col-sm-3 field-control-mobile">
               <h6 className='text-secondary'>Farm devices</h6>
-              <small>Total Devices : <span className='fw-bold fs-6'>{activeDevices.total_device}</span></small><br />
+              <small>Total Devices : <span className='fw-bold fs-6'>{activeDevices.total_device>0 ?(activeDevices.total_device +1) : 0}</span></small><br />
               <small>Active Devices : <span className='fw-bold fs-6'>{activeDevices.total_active_devices}</span></small>
             </div>
             <div className="col-12 col-sm-3 field-control-mobile">
@@ -164,7 +181,7 @@ const FieldControl = ({collected_data}) => {
                       value={threshold1}
                       onChange={handleThresholdChange1}
                       className="form-control form-control-sm ms-2"
-                      style={{ width: '80px' }}
+                      style={{ width: '60px' }}
                       min={10}
                       max={30}
                     />
@@ -196,7 +213,7 @@ const FieldControl = ({collected_data}) => {
                       value={threshold2}
                       onChange={handleThresholdChange2}
                       className="form-control form-control-sm ms-2"
-                      style={{ width: '80px' }}
+                      style={{ width: '60px' }}
                     />
                     <button
                       onClick={toggleEditThreshold2}
@@ -247,7 +264,9 @@ const FieldControl = ({collected_data}) => {
                   >
                     Auto
                   </button>
-                  <span className='text-secondary ms-2'>Recommended</span>
+                  {
+                    recomended && (<span className='text-secondary ms-2'>Recommended</span>)
+                  }
                 </div>
                 <OverlayTrigger
                   trigger="click"

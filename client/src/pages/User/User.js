@@ -55,7 +55,8 @@ const User = () => {
   };
 
   const farm_details = selectedFarmDetails;
-  console.log(farm_details);
+  // console.log(farm_details);
+  const farmer_detail = rec;
 
   if (loading) {
     return (
@@ -106,7 +107,7 @@ const User = () => {
   const handleCloseModal = () => setShowModal(false);
 
   return (
-    <main>
+    <main >
       <header className="fixed-top">
         <NavBar />
       </header>
@@ -141,7 +142,7 @@ const User = () => {
               ) : (
                 <>
                   <div className="col-12 mb-3 borderring">
-                    <FarmSensorsControl collected_data={farm_details} />
+                    <FarmSensorsControl collected_data={farm_details} farmer_details={farmer_detail} />
                     <FieldControl collected_data={farm_details} />
                   </div>
                   <div className="col-12">
