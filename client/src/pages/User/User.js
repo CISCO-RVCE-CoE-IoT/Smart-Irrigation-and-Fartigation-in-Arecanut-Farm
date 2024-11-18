@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import Spinner from "react-bootstrap/Spinner";
-import logo from "./Images/logo.png";
 import "./CSS/User.css";
-import servererror from './Images/server.jpg';
 import "bootstrap/dist/css/bootstrap.min.css";
 import NavBar from "./Components/NavBar";
 import Farmer from "./Components/Farmer/Farmer";
@@ -55,8 +52,8 @@ const User = () => {
   };
 
   const farm_details = selectedFarmDetails;
-  // console.log(farm_details);
   const farmer_detail = rec;
+  
 
   if (loading) {
     return (
@@ -143,7 +140,7 @@ const User = () => {
                 <>
                   <div className="col-12 mb-3 borderring">
                     <FarmSensorsControl collected_data={farm_details} farmer_details={farmer_detail} />
-                    <FieldControl collected_data={farm_details} />
+                    <FieldControl collected_data={farm_details} farmer_details={farmer_detail} />
                   </div>
                   <div className="col-12">
                     <MapContainer collected_data={farm_details} />

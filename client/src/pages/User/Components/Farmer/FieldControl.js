@@ -9,7 +9,7 @@ import mist from './WeatherImages/mist.png';
 const apikey = "8925502a781648f4443f9e01d96c7ff5";
 const apiURL = "https://api.openweathermap.org/data/2.5/forecast?units=metric&lat=";
 
-const FieldControl = ({collected_data}) => {
+const FieldControl = ({collected_data ,farmer_details =[]}) => {
 
   function recomendation(collected_data) {
     const totalmoisture = collected_data.device_values.valve_devices_data.reduce((sum, device) => sum + device.avg_section_moisture, 0);
@@ -157,8 +157,7 @@ const FieldControl = ({collected_data}) => {
     </Popover>
   );
 
-
-
+  
   return (
     <div>
       <hr className='my-1'></hr>
@@ -171,9 +170,14 @@ const FieldControl = ({collected_data}) => {
               <small>Active Devices : <span className='fw-bold fs-6'>{activeDevices.total_active_devices}</span></small>
             </div>
             <div className="col-12 col-sm-3 field-control-mobile">
-              <h6 className="text-secondary m-0">Threshold</h6>
-              <div className="d-flex align-items-center">
-                <small>Auto on threshold : </small>
+              <div className='d-flex'> 
+
+              <h6 className="text-secondary me-2 m-0">Auto threshold values</h6> 
+              <i className="fa-solid fa-pen text-secondary" style={{cursor:'pointer'}}></i>
+              </div>
+
+              <div className="d-flex align-items-center mt-2">
+                <small>On threshold : </small>
                 {isEditingThreshold1 ? (
                   <>
                     <input
@@ -199,13 +203,12 @@ const FieldControl = ({collected_data}) => {
                       onClick={toggleEditThreshold1}
                       className="btn btn-sm ms-1 text-secondary "
                     >
-                      <i className="fa-solid fa-pen"></i>
                     </button>
                   </>
                 )}
               </div>
-              <div className="d-flex align-items-center">
-                <small>Auto off threshold : </small>
+              <div className="d-flex align-items-center mt-1">
+                <small>Off threshold : </small>
                 {isEditingThreshold2 ? (
                   <>
                     <input
@@ -229,11 +232,17 @@ const FieldControl = ({collected_data}) => {
                       onClick={toggleEditThreshold2}
                       className="btn btn-sm ms-2 text-secondary"
                     >
-                      <i className="fa-solid fa-pen"></i>
                     </button>
                   </>
                 )}
               </div>
+              {/* <div>
+                <form className='borderring'>
+                  <input type='number' placeholder='Enter auto on threshold value' style={{width:'100%'}}/>
+                  <input type='number' placeholder='Enter auto off threshold value' className='my-1' style={{width:'100%'}} />
+                  <button >Save</button>
+                </form>
+              </div> */}
             </div>
             <div className='col-12 col-sm-3 field-control-mobile'>
               <h6 className='text-secondary m-0'>Weather in 6 hrs</h6>
@@ -280,7 +289,7 @@ const FieldControl = ({collected_data}) => {
                   >
                     Manual
                   </button>
-                </OverlayTrigger>
+                </OverlayTrigger> 
               </div>
             </div>
           </div>
