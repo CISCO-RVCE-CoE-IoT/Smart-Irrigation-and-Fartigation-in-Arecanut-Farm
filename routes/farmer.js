@@ -234,6 +234,73 @@ router.post('/farm/valve/:valve_id', async (req, res) => {
 
 });
 
+router.post('/farm/all_valve/:farm_id', async (req, res) => {
+    try {
+        const { farm_id } = req.params;
+        const { mode, status, farmer_id, timer=0 } = req.body;
+
+        // Validate received data
+        if (!mode || !farmer_id) {
+            return res.status(400).send({ error: 'Insufficient data' });
+        }
+
+        let insertData = [];  
+
+        // Query to fetch valve data for the farm
+        const valveSelectQuery = `
+            SELECT section_device_id, valve_mode, valve_status, auto_on_threshold, avg_section_moisture
+            FROM public.lst_valve_avg_moisture
+            WHERE farm_id = $1;
+        `;
+        
+        const valveData = await pool.query(valveSelectQuery, [farm_id]);
+
+        if (valveData.rowCount === 0) {
+            return res.status(404).send({ error: "No valve data found for the provided farm ID" });
+        }
+
+        // Loop through each valve data and compare with received mode and status
+        for (let valve of valveData.rows) {
+            const { section_device_id, valve_mode, valve_status, auto_on_threshold, avg_section_moisture } = valve;
+
+            let finalStatus = status;  // Default to the received status
+
+            if (mode === "auto") {
+                // For auto mode, decide the status based on avg_section_moisture
+                finalStatus = avg_section_moisture < auto_on_threshold ? "on" : "off";
+            }
+
+            // Only insert if there is a change in mode or status
+            if (valve_mode !== mode || valve_status !== finalStatus) {
+                insertData.push([section_device_id, mode, finalStatus, timer]);
+            }
+        }
+
+        // Insert accumulated data all at once if any data is collected
+        if (insertData.length > 0) {
+            const valueStrings = insertData.map(
+                data => `('${data[0]}', '${data[1]}', '${data[2]}', ${data[3]})`
+            ).join(', ');
+
+            const valveInsertQuery = `
+                INSERT INTO valve_data (section_device_id, valve_mode, valve_status, manual_off_timer)
+                VALUES ${valueStrings}
+                RETURNING valve_mode, valve_status, timestamp;
+            `;
+
+            await pool.query(valveInsertQuery);
+        }
+
+        // Success response
+        return res.status(200).send({ message: "Valve data processed successfully" });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "An error occurred while processing valve data" });
+    }
+});
+
+
 async function farm_locations(farm_id) {
     const result = await pool.query(
         'SELECT farm_location_cordinates FROM farm WHERE farm_id = $1',
@@ -244,7 +311,7 @@ async function farm_locations(farm_id) {
 
 async function farm_details(farm_id) {
     const result = await pool.query(
-        'SELECT farm_name, auto_on_threshold, auto_off_threshold FROM farm WHERE farm_id = $1', [farm_id]
+        'SELECT farm_id, farm_name, auto_on_threshold, auto_off_threshold FROM farm WHERE farm_id = $1', [farm_id]
     );
     return result.rows[0];
 }

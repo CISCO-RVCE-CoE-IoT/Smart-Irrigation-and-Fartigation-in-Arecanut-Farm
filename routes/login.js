@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const pool = require('../db')
 
 
-router.get('/', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const { user, password, type } = req.body;
         let query, params, result, sessionKey;
