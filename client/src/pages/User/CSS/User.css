@@ -23,12 +23,12 @@ main {
 /* CSS for a darker shimmer effect */
 .shimmer {
   background: linear-gradient(to right,
-      #e6e7e9 0%,
+      #dcdcdc 0%,
       /* Slightly lighter base */
-      #d8d9dc 20%,
+      #efefef 20%,
       /* Slightly lighter shimmer */
-      #e6e7e9 40%,
-      #e6e7e9 100%);
+      #ffffff 40%,
+      #ffffff 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

@@ -22,17 +22,18 @@ const FieldControl = ({collected_data ,farmer_details =[]}) => {
 
   function countRecentMoistureValues(moistureDeviceValues) {
     const currentTimestamp = new Date();
-    const oneHourInMillis = 60 * 60 * 1000; 
-
+    const tenMinutesInMillis = 10 * 60 * 1000; 
+  
     const recentValues = moistureDeviceValues.filter(item => {
       const itemTimestamp = new Date(item.timestamp);
       const timeDifference = currentTimestamp - itemTimestamp;
-
-      return timeDifference <= oneHourInMillis;
+  
+      return timeDifference <= tenMinutesInMillis;
     });
-
+  
     return recentValues.length;
   }
+  
 
   const active_counting = collected_data?.device_values.moisture_device_value;
   const total_active_count = countRecentMoistureValues(active_counting);

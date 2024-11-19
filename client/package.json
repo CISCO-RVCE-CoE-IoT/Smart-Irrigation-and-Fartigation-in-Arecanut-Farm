@@ -10,6 +10,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.3",
+    "boxicons": "^2.1.4",
     "chart.js": "^4.4.6",
     "chartjs-adapter-date-fns": "^3.0.0",
     "chartjs-plugin-datalabels": "^2.2.0",
@@ -27,7 +28,7 @@
     "react-script": "^2.0.5",
     "web-vitals": "^2.1.4"
   },
-  "proxy": "http://192.168.164.212:3000",
+  "proxy": "http://192.168.20.212:3000",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

@@ -12,11 +12,11 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
     labels: labels, // Fallback to empty array
     datasets: [
       {
-        label: chartType === 'timeline' ? 'Timeline Data' : 'Line Chart Data',
+        label: chartType === 'timeline' ? 'Valve Status' : 'Line Chart Data',
         data: values, // Fallback to empty array
         fill: false,
-        backgroundColor: 'rgba(75, 192, 192, 1)',
-        borderColor: 'rgba(75, 192, 192, 0.2)',
+        backgroundColor: 'rgba(255, 0, 0, 1)', // Red color for "on" status
+        borderColor: 'rgba(255, 0, 0, 0.2)', // Light red border color
       },
     ],
   };
@@ -71,18 +71,56 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
       const chart = new window.google.visualization.Timeline(container);
       const dataTable = new window.google.visualization.DataTable();
 
-      dataTable.addColumn({ type: 'string', id: 'Room' });
-      dataTable.addColumn({ type: 'string', id: 'Name' });
+      dataTable.addColumn({ type: 'string', id: 'Section' });
+      dataTable.addColumn({ type: 'string', id: 'Status' });
       dataTable.addColumn({ type: 'date', id: 'Start' });
       dataTable.addColumn({ type: 'date', id: 'End' });
 
-      dataTable.addRows([
-        ['Magnolia Room', 'Google Charts', new Date(0, 0, 0, 14, 0, 0), new Date(0, 0, 0, 15, 0, 0)],
-        ['Magnolia Room', 'App Engine', new Date(0, 0, 0, 15, 0, 0), new Date(0, 0, 0, 16, 0, 0)],
-      ]);
+      if (!Array.isArray(labels) || !Array.isArray(values)) {
+        console.error("Labels or values are not arrays.");
+        return;
+      }
+
+      if (labels.length === 0 || values.length === 0) {
+        console.error("Labels or values arrays are empty.");
+        return;
+      }
+
+      // Ensure every label is a valid date and every value is a valid status
+      const rows = labels.map((label, index) => {
+        if (!label || !values[index]) {
+            console.error(`Missing value in row #${index}.`);
+            return null; // Skip this row if status or timestamp is missing
+        }
+
+        const startTime = new Date(label);
+        const endTime = index + 1 < labels.length ? new Date(labels[index + 1]) : new Date(); // Use current date if no next time
+        const status = values[index];
+
+        if (isNaN(startTime.getTime()) || (endTime && isNaN(endTime.getTime()))) {
+            console.error(`Invalid date at row #${index}: start(${startTime}) or end(${endTime}) is not a valid date.`);
+            return null; // Skip this row
+        }
+
+        // Fix invalid order of dates
+        if (endTime && startTime >= endTime) {
+            console.warn(`Correcting invalid data at row #${index}: start(${startTime}) > end(${endTime}).`);
+            endTime.setTime(startTime.getTime() + 60000); // Add 1 minute to end time
+        }
+
+        return ['Valve', status.trim(), startTime, endTime];
+      }).filter(row => row !== null); // Filter out invalid rows
+
+      if (rows.length === 0) {
+        console.error("No valid data rows for the timeline chart.");
+        return;
+      }
+
+      dataTable.addRows(rows);
 
       const options = {
         timeline: { showRowLabels: false },
+        colors: ['#FF0000'], // Set the color for the timeline events to red
         avoidOverlappingGridLines: false,
       };
 
@@ -95,7 +133,7 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
         script.remove();
       }
     };
-  }, [show, chartType]);
+  }, [show, chartType, labels, values]);
 
   return (
     <BootstrapModal
@@ -106,7 +144,7 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
       dialogClassName="modal-auto-width"
     >
       <BootstrapModal.Header closeButton>
-        <BootstrapModal.Title>{chartType === 'timeline' ? 'Timeline Chart' : 'Line Chart'}</BootstrapModal.Title>
+        <BootstrapModal.Title>{chartType === 'timeline' ? 'Valve Timeline Chart' : 'Line Chart'}</BootstrapModal.Title>
       </BootstrapModal.Header>
       <BootstrapModal.Body>
         {chartType === 'timeline' ? (

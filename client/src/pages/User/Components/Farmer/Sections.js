@@ -15,9 +15,15 @@ ChartJS.register(
 );
 
 const getUniqueColor = (index) => {
-    const hue = (index * 137.5) % 360;  // 137.5 is a number that ensures the colors are evenly spaced
-    return `hsl(${hue}, 70%, 50%)`;  // Generate a darker HSL color with lower lightness
+    const darkGreenShades = [
+        '#013220', '#004225', '#0B3D2E', '#2E8B57', '#05402D',
+        '#064635', '#0A4D3C', '#11574A', '#1B7D5F', '#145C51',
+        '#006400', '#004E2C', '#00564D', '#007860', '#006B54'
+    ];
+
+    return darkGreenShades[Math.floor(Math.random() * darkGreenShades.length)];
 };
+
 
 const Sections = ({ collected_data = {} }) => {
     const { farm_details, location_coordinates, device_values } = collected_data;

@@ -48,19 +48,32 @@ const FarmSensorsControl = ({ collected_data = {}, farmer_details = {} }) => {
     setActiveDevicesSetup(activeDevices);
   }, [collected_data]);
 
+
   const getActiveDevices = (devices) => {
-    return devices.filter((item) => {
-      // Ensure the item has a valid timestamp and moisture value
-      if (!item.timestamp || item.moisture_value == null) return false;
-
-      const itemTime = new Date(item.timestamp);
-      const now = new Date();
-      const diffInMinutes = (now - itemTime) / (1000 * 60);
-
-      // Return active if the device's timestamp is within 10 minutes and the moisture value is non-zero
-      return diffInMinutes <= 10 && item.moisture_value !== 0;
+    return devices.filter((device) => {
+      if (!device.timestamp) {
+        console.log("Inactive: Missing timestamp", device);
+        return false;
+      }
+  
+      const deviceTime = new Date(device.timestamp).getTime();
+      const now = new Date().getTime();
+      const diffInMinutes = (now - deviceTime) / (1000 * 60);
+  
+      if (diffInMinutes >= 10) {
+        console.log("Inactive: Timestamp older than 10 minutes", device);
+        return false;
+      }
+  
+      if (device.moisture_value === 0) {
+        console.log("Inactive: Moisture value is zero", device);
+        return false;
+      }
+  
+      return true; // All conditions passed
     });
   };
+  
 
   const handleFarmNameChange = (event) => {
     setNewFarmName(event.target.value);

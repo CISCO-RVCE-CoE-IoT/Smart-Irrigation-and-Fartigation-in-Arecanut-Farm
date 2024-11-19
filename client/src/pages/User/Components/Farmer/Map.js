@@ -3,7 +3,6 @@ import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import campass from './WeatherImages/campass.png';
 import Modal from "./Modal";
-import { Line } from "react-chartjs-2";
 
 const MapContainer = ({ collected_data }) => {
     const locationCoordinates = collected_data?.location_coordinates;
@@ -14,9 +13,9 @@ const MapContainer = ({ collected_data }) => {
     const [legendItems, setLegendItems] = useState([]);
     const scrollerRef = useRef(null);
 
-    // State for modal and chart data
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [chartData, setChartData] = useState(null);
+    const [chartType, setChartType] = useState('line');
 
     // Horizontal scrolling for the map container
     useEffect(() => {
@@ -56,9 +55,9 @@ const MapContainer = ({ collected_data }) => {
 
         const colorMap = {
             farmland: "green",
-            valve: "orange",
-            moisture: "darkblue",
-            npk: "red",
+            valve: "red",
+            moisture: "blue",
+            npk: "orange",
         };
 
         const farmlandCoordinates = locationCoordinates.farm_coordinates?.map(coord => {
@@ -76,8 +75,6 @@ const MapContainer = ({ collected_data }) => {
             moistureValuesMap.set(section_device_id, moisture_value);
         });
 
-        const uniqueDeviceMarkers = [];
-
         locationCoordinates.section_device?.forEach(device => {
             const [lat, lon] = device.device_location?.split(",").map(Number) || [];
             if (lat && lon && isWithinBounds([lat, lon], farmlandCoordinates)) {
@@ -94,22 +91,49 @@ const MapContainer = ({ collected_data }) => {
                     })
                         .bindPopup(`Moisture Sensor in ${device.section_name}<br/>Value: ${moistureValue}`)
                         .on("click", () => handleMoistureSensorClick(device.section_device_id));
-                        // console.log(device.section_device_id);
-                        
-                    uniqueDeviceMarkers.push(moistureCircle);
+                    moistureCircle.addTo(mapInstance.current);
+
+                    L.circleMarker([lat, lon], {
+                        radius: 5,
+                        fillColor: colorMap.moisture,
+                        color: colorMap.moisture,
+                        fillOpacity: 1,
+                        weight: 2,
+                    })
+                        .bindPopup(`Moisture Sensor in ${device.section_name}`)
+                        .addTo(mapInstance.current);
+                }
+
+                if (device.device_name === "valve") {
+                    L.circleMarker([lat, lon], {
+                        radius: 8,
+                        fillColor: colorMap.valve,
+                        color: colorMap.valve,
+                        fillOpacity: 0.8,
+                        weight: 2,
+                    })
+                        .bindPopup(`Valve in ${device.section_name}`)
+                        .on("click", () => handleValveClick(device.section_device_id))
+                        .addTo(mapInstance.current);
+                }
+
+                if (device.device_name === "npk") {
+                    L.circleMarker([lat, lon], {
+                        radius: 8,
+                        fillColor: colorMap.npk,
+                        color: colorMap.npk,
+                        fillOpacity: 0.8,
+                        weight: 2,
+                    })
+                        .bindPopup(`NPK Sensor in ${device.section_name}`)
+                        .addTo(mapInstance.current);
                 }
             }
         });
 
-        uniqueDeviceMarkers.forEach(marker => marker.addTo(mapInstance.current));
-
-        const bounds = L.latLngBounds(farmlandCoordinates);
-        uniqueDeviceMarkers.forEach(marker => bounds.extend(marker.getLatLng()));
-        mapInstance.current.fitBounds(bounds);
-
         const legendData = [
             { type: "moisture", color: colorMap.moisture },
-            { type: "valve", color: "orange" },
+            { type: "valve", color: colorMap.valve },
             { type: "npk", color: colorMap.npk },
         ];
         setLegendItems(legendData);
@@ -125,33 +149,39 @@ const MapContainer = ({ collected_data }) => {
         try {
             const response = await fetch(`/farmer/farm/moisture/${sensorId}`);
             const data = await response.json();
-    
+            
             if (data.length === 0) {
                 console.error("No data available for the selected sensor");
                 return;
             }
-    
+
             const labels = data.map(item => new Date(item.timestamp).toLocaleString());
             const values = data.map(item => item.moisture_value);
-    
-            // Make sure data format is correct
-            setChartData({
-                labels: labels,
-                datasets: [{
-                    label: "Moisture Level",
-                    data: values,
-                    borderColor: "blue",
-                    fill: false,
-                    tension: 0.4,
-                }],
-            });
+
+            setChartData({ labels, values });
+            setChartType('line');
             setIsModalOpen(true);
         } catch (error) {
             console.error("Error fetching moisture data:", error);
         }
     };
-    
-    
+
+    const handleValveClick = async (valveId) => {
+        try {
+            const response = await fetch(`/farmer/farm/valve/${valveId}`);
+            const data = await response.json();
+
+            const labels = data.map(item => new Date(item.timestamp).toLocaleString());
+            const values = data.map(item => item.valve_status?.trim());
+
+            setChartData({ labels, values });
+            setChartType('timeline');
+            setIsModalOpen(true);
+        } catch (error) {
+            console.error("Error fetching valve data:", error);
+        }
+    };
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setChartData(null);
@@ -192,16 +222,8 @@ const MapContainer = ({ collected_data }) => {
                 </div>
 
                 {isModalOpen && (
-    <Modal show={isModalOpen} handleClose={handleCloseModal}>
-        {chartData ? (
-            <Line data={chartData} options={{ responsive: true }} />
-        ) : (
-            <p>Loading chart...</p>
-        )}
-    </Modal>
-)}
-
-
+                    <Modal show={isModalOpen} handleClose={handleCloseModal} chartData={chartData} chartType={chartType} />
+                )}
             </div>
         </div>
     );
