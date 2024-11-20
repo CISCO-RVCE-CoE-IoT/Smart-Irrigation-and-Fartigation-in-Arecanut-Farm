@@ -28,11 +28,12 @@ const LoginSignup = () => {
       }
   
       const data = await response.json();
-      console.log(data);
+      // console.log(data);
       setAuthorized(true);
       navigate(`/farmer/${data.userId}`);
   } catch (error) {
       console.error('Error during login:', error.message);
+      alert("User not exists")
   }
   
   };
@@ -41,14 +42,14 @@ const LoginSignup = () => {
     event.preventDefault();
     try {
       const response = await fetch('/admin/login', {
-        method: 'GET',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user: adminUsername, password: adminPassword, type: 'admin' })
       });
   
       if (response.ok) {
         const data = await response.json();
-        console.log(data);
+        // console.log(data);
         setAuthorized(true);
         // Redirect or handle admin login as needed
       } else {

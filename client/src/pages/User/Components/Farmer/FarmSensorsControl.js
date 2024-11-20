@@ -52,7 +52,7 @@ const FarmSensorsControl = ({ collected_data = {}, farmer_details = {} }) => {
   const getActiveDevices = (devices) => {
     return devices.filter((device) => {
       if (!device.timestamp) {
-        console.log("Inactive: Missing timestamp", device);
+        // console.log("Inactive: Missing timestamp", device);
         return false;
       }
   
@@ -61,12 +61,12 @@ const FarmSensorsControl = ({ collected_data = {}, farmer_details = {} }) => {
       const diffInMinutes = (now - deviceTime) / (1000 * 60);
   
       if (diffInMinutes >= 10) {
-        console.log("Inactive: Timestamp older than 10 minutes", device);
+        // console.log("Inactive: Timestamp older than 10 minutes", device);
         return false;
       }
   
       if (device.moisture_value === 0) {
-        console.log("Inactive: Moisture value is zero", device);
+        // console.log("Inactive: Moisture value is zero", device);
         return false;
       }
   

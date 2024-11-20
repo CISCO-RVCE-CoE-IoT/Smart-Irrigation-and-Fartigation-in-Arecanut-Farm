@@ -5,8 +5,17 @@ import campass from './WeatherImages/campass.png';
 import Modal from "./Modal";
 
 const MapContainer = ({ collected_data }) => {
+
     const locationCoordinates = collected_data?.location_coordinates;
     const device_values = collected_data?.device_values;
+
+    // Combine farm_device (NPK) into section_device
+    const combinedDevices = [...locationCoordinates.section_device, ...locationCoordinates.farm_device.map(device => ({
+        ...device,
+        section_device_id: device.farm_device_id,
+        section_name: 'NPK Sensor',
+        device_name: 'npk'
+    }))];
 
     const mapRef = useRef(null);
     const mapInstance = useRef(null);
@@ -17,7 +26,6 @@ const MapContainer = ({ collected_data }) => {
     const [chartData, setChartData] = useState(null);
     const [chartType, setChartType] = useState('line');
 
-    // Horizontal scrolling for the map container
     useEffect(() => {
         const handleWheel = (event) => {
             event.preventDefault();
@@ -38,7 +46,6 @@ const MapContainer = ({ collected_data }) => {
         };
     }, []);
 
-    // Initialize the map and markers
     useEffect(() => {
         if (!locationCoordinates || !device_values || !mapRef.current) return;
 
@@ -46,7 +53,7 @@ const MapContainer = ({ collected_data }) => {
             mapInstance.current.remove();
         }
 
-        mapInstance.current = L.map(mapRef.current).setView([16.22525, 74.8424], 16);
+        mapInstance.current = L.map(mapRef.current);
 
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
             maxZoom: 27,
@@ -68,6 +75,7 @@ const MapContainer = ({ collected_data }) => {
         if (farmlandCoordinates.length > 0) {
             const farmlandLayer = L.polygon(farmlandCoordinates, { color: colorMap.farmland }).addTo(mapInstance.current);
             farmlandLayer.bindPopup("Farmland Area");
+            mapInstance.current.fitBounds(farmlandLayer.getBounds());
         }
 
         const moistureValuesMap = new Map();
@@ -75,12 +83,12 @@ const MapContainer = ({ collected_data }) => {
             moistureValuesMap.set(section_device_id, moisture_value);
         });
 
-        locationCoordinates.section_device?.forEach(device => {
+        combinedDevices.forEach(device => {
             const [lat, lon] = device.device_location?.split(",").map(Number) || [];
             if (lat && lon && isWithinBounds([lat, lon], farmlandCoordinates)) {
                 if (device.device_name === "moisture") {
                     const moistureValue = moistureValuesMap.get(device.section_device_id) || 0;
-                    const moistureRadius = moistureValue * 0.05;
+                    const moistureRadius = moistureValue * 0.30;
 
                     const moistureCircle = L.circle([lat, lon], {
                         radius: moistureRadius,
@@ -106,7 +114,7 @@ const MapContainer = ({ collected_data }) => {
 
                 if (device.device_name === "valve") {
                     L.circleMarker([lat, lon], {
-                        radius: 8,
+                        radius: 5,
                         fillColor: colorMap.valve,
                         color: colorMap.valve,
                         fillOpacity: 0.8,
@@ -119,13 +127,14 @@ const MapContainer = ({ collected_data }) => {
 
                 if (device.device_name === "npk") {
                     L.circleMarker([lat, lon], {
-                        radius: 8,
+                        radius: 5,
                         fillColor: colorMap.npk,
                         color: colorMap.npk,
                         fillOpacity: 0.8,
                         weight: 2,
                     })
                         .bindPopup(`NPK Sensor in ${device.section_name}`)
+                        .on("click", () => handleNpkClick(device.section_device_id))
                         .addTo(mapInstance.current);
                 }
             }
@@ -150,10 +159,7 @@ const MapContainer = ({ collected_data }) => {
             const response = await fetch(`/farmer/farm/moisture/${sensorId}`);
             const data = await response.json();
             
-            if (data.length === 0) {
-                console.error("No data available for the selected sensor");
-                return;
-            }
+            if (data.length === 0) return;
 
             const labels = data.map(item => new Date(item.timestamp).toLocaleString());
             const values = data.map(item => item.moisture_value);
@@ -182,10 +188,96 @@ const MapContainer = ({ collected_data }) => {
         }
     };
 
+    const handleNpkClick = async (npkId) => {
+        try {
+            console.log("Fetching NPK data for device ID:", npkId);
+            const response = await fetch(`/farmer/farm/farm_device/${npkId}`);
+            const data = await response.json();
+            
+            console.log("Received data:", data);
+    
+            if (data.error) {
+                console.error("Error received from API:", data.error);
+                return;
+            }
+    
+            if (data.length === 0) {
+                console.warn("No data available for the provided NPK device ID:", npkId);
+                return;
+            }
+    
+            const labels = data.map(item => new Date(item.timestamp).toLocaleString());
+            const nitrogenValues = data.map(item => item.nitrogen);
+            const phosphorusValues = data.map(item => item.phosphorus);
+            const potassiumValues = data.map(item => item.potassium);
+            const temperatureValues = data.map(item => item.temperature);
+            const humidityValues = data.map(item => item.humidity);
+    
+            console.log("Chart data prepared", {
+                labels,
+                datasets: [
+                    { label: 'Nitrogen', data: nitrogenValues },
+                    { label: 'Phosphorus', data: phosphorusValues },
+                    { label: 'Potassium', data: potassiumValues },
+                    { label: 'Temperature', data: temperatureValues },
+                    { label: 'Humidity', data: humidityValues }
+                ]
+            });
+    
+            setChartData({
+                labels,
+                datasets: [
+                    {
+                        label: 'Nitrogen',
+                        data: nitrogenValues,
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        fill: true,
+                    },
+                    {
+                        label: 'Phosphorus',
+                        data: phosphorusValues,
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        fill: true,
+                    },
+                    {
+                        label: 'Potassium',
+                        data: potassiumValues,
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                        fill: true,
+                    },
+                    {
+                        label: 'Temperature',
+                        data: temperatureValues,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        fill: true,
+                    },
+                    {
+                        label: 'Humidity',
+                        data: humidityValues,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        fill: true,
+                    },
+                ],
+            });
+            setChartType('line');
+            setIsModalOpen(true);
+        } catch (error) {
+            console.error("Error fetching NPK data:", error);
+        }
+    };
+    
+    
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setChartData(null);
     };
+
 
     return (
         <div ref={scrollerRef} className="borderring p-0" style={{ overflow: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" }}>
@@ -218,7 +310,7 @@ const MapContainer = ({ collected_data }) => {
                             <span style={{ fontSize: '13px' }}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</span>
                         </div>
                     ))}
-                    <img src={campass} width={20} /> <span style={{ fontSize: '13px' }}>Campass</span>
+                    <img src={campass} width={20} alt="Compass" /> <span style={{ fontSize: '13px' }}>Compass</span>
                 </div>
 
                 {isModalOpen && (

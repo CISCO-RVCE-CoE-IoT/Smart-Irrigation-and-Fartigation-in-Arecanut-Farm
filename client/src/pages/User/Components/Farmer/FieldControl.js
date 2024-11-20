@@ -152,6 +152,8 @@ const FieldControl = ({collected_data ,farmer_details =[]}) => {
             >
               Save Changes
             </button>
+            <small className='ps-3'>00:00 left</small>
+
           </div>
         </form>
       </Popover.Body>
@@ -174,7 +176,7 @@ const FieldControl = ({collected_data ,farmer_details =[]}) => {
               <div className='d-flex'> 
 
               <h6 className="text-secondary me-2 m-0">Auto threshold values</h6> 
-              <i className="fa-solid fa-pen text-secondary" style={{cursor:'pointer'}}></i>
+              {/* <i className="fa-solid fa-pen text-secondary" style={{cursor:'pointer'}}></i> */}
               </div>
 
               <div className="d-flex align-items-center mt-2">

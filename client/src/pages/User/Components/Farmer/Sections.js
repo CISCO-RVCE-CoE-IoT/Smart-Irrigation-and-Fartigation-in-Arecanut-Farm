@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Bar, Line, Doughnut, Radar, PolarArea, Pie } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, LineElement } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, RadialLinearScale, Title, Tooltip, Legend } from 'chart.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Popover, OverlayTrigger, Modal, Button } from 'react-bootstrap';
+import { Modal, Button, Form } from 'react-bootstrap';
 
 ChartJS.register(
     CategoryScale,
     LinearScale,
     BarElement,
+    LineElement,
+    PointElement,
+    ArcElement,
+    RadialLinearScale,
     Title,
     Tooltip,
-    Legend,
-    LineElement
+    Legend
 );
 
 const getUniqueColor = (index) => {
@@ -24,13 +27,12 @@ const getUniqueColor = (index) => {
     return darkGreenShades[Math.floor(Math.random() * darkGreenShades.length)];
 };
 
-
-const Sections = ({ collected_data = {} }) => {
-    const { farm_details, location_coordinates, device_values } = collected_data;
+const Sections = ({ collected_data = {}, farmer_details }) => {
+    const { device_values } = collected_data;
     const sectionsData = device_values?.valve_devices_data || [];
     const moistureData = device_values?.moisture_device_value || [];
+    const farmer_id = farmer_details?.farmer_details?.farmer_id;
 
-    // Merge moisture values into sectionsData based on section_device_id
     const sectionsWithMoisture = sectionsData.map(section => {
         const moistureValues = moistureData.filter(moisture => moisture.section_id === section.section_id);
         const avgMoisture = moistureValues.reduce((acc, curr) => acc + curr.moisture_value, 0) / (moistureValues.length || 1);
@@ -45,6 +47,7 @@ const Sections = ({ collected_data = {} }) => {
             ...section,
             inputTime: '',
             timer: 0,
+            remainingTime: 0,
             isCounting: false,
             isOnDisabled: true,
             isManualMode: false,
@@ -53,14 +56,20 @@ const Sections = ({ collected_data = {} }) => {
     const [inputDuration, setInputDuration] = useState('');
     const [isStarted, setIsStarted] = useState(false);
     const [showModal, setShowModal] = useState(false);
+    const [sectionDeviceId, setSectionDeviceId] = useState(null);
+    const [valveStatus, setValveStatus] = useState('off');
+    const [showStopModal, setShowStopModal] = useState(false);
+    const [sectionToStop, setSectionToStop] = useState(null);
+    const [showAutoModal, setShowAutoModal] = useState(false);
+    const [mode, setMode] = useState('manual');
 
-    // Update the sectionsState whenever collected_data changes
     useEffect(() => {
         if (collected_data.device_values) {
             const updatedSections = sectionsWithMoisture.map(section => ({
                 ...section,
                 inputTime: '',
                 timer: 0,
+                remainingTime: 0,
                 isCounting: false,
                 isOnDisabled: true,
                 isManualMode: false,
@@ -69,22 +78,41 @@ const Sections = ({ collected_data = {} }) => {
         }
     }, [collected_data]);
 
-    // If no data is available, show a message
-    if (!sectionsState.length) {
-        return <div className='borderring'>
-            <span className='fs-6 text-secondary'>No data available for sections</span>
-        </div>;
-    }
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSectionsState(prevState => prevState.map(section => {
+                if (section.isCounting && section.remainingTime > 0) {
+                    return { ...section, remainingTime: section.remainingTime - 1 };
+                }
+                return section;
+            }));
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
 
-    const handleShow = () => setShowModal(true);
+    const handleShow = (sectionId) => {
+        setSectionDeviceId(sectionId);
+        setShowModal(true);
+    };
     const handleClose = () => setShowModal(false);
+    const handleStopShow = (sectionId) => {
+        setSectionToStop(sectionId);
+        setShowStopModal(true);
+    };
+    const handleStopClose = () => setShowStopModal(false);
+    const handleAutoShow = (sectionId) => {
+        setMode('auto');
+        setSectionDeviceId(sectionId);
+        setShowAutoModal(true);
+    };
+    const handleAutoClose = () => setShowAutoModal(false);
 
     const columnChartData = {
         labels: sectionsState.map(section => section.section_name),
         datasets: [
             {
                 label: 'Moisture Value',
-                data: sectionsState.map((section, index) => Math.floor(section.avg_section_moisture)),
+                data: sectionsState.map(section => Math.floor(section.avg_section_moisture)),
                 backgroundColor: sectionsState.map((_, index) => getUniqueColor(index)),
                 borderColor: 'transparent',
                 borderWidth: 1,
@@ -93,7 +121,7 @@ const Sections = ({ collected_data = {} }) => {
             },
             {
                 label: 'Moisture Value Line',
-                data: sectionsState.map((section, index) => Math.floor(section.avg_section_moisture)),
+                data: sectionsState.map(section => Math.floor(section.avg_section_moisture)),
                 borderColor: 'black',
                 backgroundColor: 'transparent',
                 borderWidth: 2,
@@ -104,191 +132,266 @@ const Sections = ({ collected_data = {} }) => {
         ],
     };
 
-
     const capitalizeFirstLetter = (string) => {
         return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
     };
 
-    // Modal content for 6 types of charts
-    const chartData = {
-        labels: sectionsState.map(section => section.section_name),
-        datasets: [{
-            label: 'Moisture Value',
-            data: sectionsState.map((section, index) => Math.floor(section.avg_section_moisture)),
-            backgroundColor: sectionsState.map((_, index) => getUniqueColor(index)),
-            borderColor: 'transparent',
-            borderWidth: 1,
-        }]
-    };
-
-
-    // Handle manual mode input change
     const handleInputChange = (e) => {
         setInputDuration(e.target.value);
     };
 
-    // Handle Start button click for manual mode
     const handleStartClick = () => {
         setIsStarted(true);
+        setValveStatus('on');
     };
 
-    // Handle saving changes to manual mode settings
-    const handleSaveChanges = (e) => {
+    const handleSaveChanges = async (e) => {
         e.preventDefault();
-        // Implement your save logic here (e.g., update the sectionsState or trigger any other action)
-        console.log('Saving changes', inputDuration);
+        if (!sectionDeviceId) {
+            console.error("Section Device ID is null");
+            return;
+        }
+
+        const payload = {
+            mode: mode,
+            status: valveStatus,
+            timer: inputDuration || 0,
+            farmer_id: farmer_id,
+        };
+
+        try {
+            const response = await fetch(`/farmer/farm/valve/${sectionDeviceId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Failed to insert valve data", errorText);
+                return;
+            }
+
+            const result = await response.json();
+
+            setSectionsState(prevState => prevState.map(section =>
+                section.section_device_id === sectionDeviceId
+                    ? { ...section, timer: inputDuration * 60, remainingTime: inputDuration * 60, isCounting: true, valve_mode: mode, valve_status: valveStatus }
+                    : section
+            ));
+        } catch (error) {
+            console.error("Error while inserting valve data", error);
+        }
+
         setIsStarted(false);
+        setValveStatus('off');
+        setShowModal(false);
+    };
+
+    const handleStopClick = async () => {
+        const sectionId = sectionToStop;
+        const section = sectionsState.find(section => section.section_device_id === sectionId);
+        const remainingTime = section.remainingTime;
+
+        try {
+            const response = await fetch(`/farmer/farm/valve/${sectionId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mode: mode,
+                    status: "off",
+                    timer: remainingTime,
+                    farmer_id: farmer_id,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Failed to update valve data", errorText);
+                return;
+            }
+
+            const result = await response.json();
+
+            setSectionsState(prevState => prevState.map(section =>
+                section.section_device_id === sectionId
+                    ? { ...section, timer: 0, remainingTime: 0, isCounting: false, valve_status: 'off' }
+                    : section
+            ));
+        } catch (error) {
+            console.error("Error while updating valve data", error);
+        }
+
+        setShowStopModal(false);
+    };
+
+    const handleAutoConfirm = () => {
+        if (sectionsState.find(section => section.section_device_id === sectionDeviceId).avg_section_moisture <= 50) {
+            setValveStatus('on');
+        } else {
+            setValveStatus('off');
+        }
+        setMode('auto');
+        handleSaveChanges({ preventDefault: () => {} });
+        setShowAutoModal(false);
     };
 
     return (
-        <div>
-            <div className="container p-0">
-                <div className="row d-flex align-items-stretch">
-                    <div className="col-12 col-sm-6 d-flex align-items-stretch" style={{ height: '100%' }}>
-                        <div className="borderring w-100" style={{ height: '100%' }}>
-                            <h6 className="text-secondary p-1" style={{ fontSize: '14px' }}>Sections</h6>
-                            <div className="sectionlogs overflow-auto" style={{ maxHeight: '215px', height: '100%' }}>
-                                <table className="table table-striped table-hover table-responsive" style={{ fontSize: '0.875rem', padding: '0.5rem' }}>
-                                    <thead>
-                                        <tr>
-                                            <th scope="col">Section</th>
-                                            <th scope="col">Moisture</th>
-                                            <th scope="col">Status</th>
-                                            <th scope="col">Controls</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {sectionsState.map((section, index) => (
+        <div className="container p-0">
+            <div className="row d-flex align-items-stretch">
+                <div className="col-12 col-sm-6 d-flex align-items-stretch" style={{ height: '100%' }}>
+                    <div className="borderring w-100" style={{ height: '100%' }}>
+                        <h6 className="text-secondary p-1" style={{ fontSize: '14px' }}>Sections</h6>
+                        <div className="sectionlogs overflow-auto" style={{ maxHeight: '215px', height: '100%' }}>
+                            <table className="table table-striped table-hover table-responsive" style={{ fontSize: '0.875rem', padding: '0.5rem' }}>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Section</th>
+                                        <th scope="col">Moisture</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Controls</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {sectionsState
+                                        .sort((a, b) => {
+                                            if (a.valve_status === 'on' && b.valve_status !== 'on') return -1;
+                                            if (a.valve_status !== 'on' && b.valve_status === 'on') return 1;
+                                            return 0;
+                                        })
+                                        .map((section) => (
                                             <tr key={section.section_device_id}>
                                                 <td>{section.section_name}</td>
                                                 <td>{Math.floor(section.avg_section_moisture)}</td>
                                                 <td>{capitalizeFirstLetter(section.valve_mode)} {capitalizeFirstLetter(section.valve_status)}</td>
                                                 <td>
                                                     <div className="d-flex align-items-center">
-                                                        <button
+                                                        <Button
                                                             type="button"
                                                             className="btn btn-outline-secondary btn-sm me-2"
+                                                            onClick={() => handleAutoShow(section.section_device_id)}
+                                                            disabled={section.isCounting}
                                                         >
                                                             Auto
-                                                        </button>
-                                                        <OverlayTrigger
-                                                            trigger="click"
-                                                            placement="top"
-                                                            overlay={
-                                                                <Popover id="popover-manual">
-                                                                    <Popover.Body className="popover-body">
-                                                                        <form onSubmit={(e) => handleSaveChanges(e)}>
-                                                                            <input
-                                                                                className="form-control form-control-sm mt-1 mb-2"
-                                                                                type="number"
-                                                                                placeholder="Enter duration"
-                                                                                value={inputDuration}
-                                                                                onChange={handleInputChange}
-                                                                            />
-                                                                            <div className="d-flex justify-content-evenly align-items-center">
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="btn btn-outline-secondary btn-sm w-100 me-3"
-                                                                                    onClick={handleStartClick}
-                                                                                    disabled={!inputDuration}
-                                                                                >
-                                                                                    Start
-                                                                                </button>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="btn btn-outline-secondary btn-sm w-100"
-                                                                                >
-                                                                                    Stop
-                                                                                </button>
-                                                                            </div>
-                                                                            <div className="text-center my-2">
-                                                                                <button
-                                                                                    type="submit"
-                                                                                    className="text-center btn btn-outline-secondary btn-sm"
-                                                                                    disabled={!isStarted}
-                                                                                >
-                                                                                    Save Changes
-                                                                                </button>
-                                                                            </div>
-                                                                        </form>
-                                                                    </Popover.Body>
-                                                                </Popover>
-                                                            }
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            className="btn btn-outline-secondary me-2 btn-sm"
+                                                            onClick={() => handleShow(section.section_device_id)}
+                                                            disabled={section.isCounting}
                                                         >
-                                                            <button
+                                                            Manual
+                                                        </Button>
+                                                        {(section.isCounting || (section.valve_mode === 'manual' && section.valve_status === 'on') || (section.valve_mode === 'auto' && section.valve_status === 'on')) && (
+                                                            <Button
                                                                 type="button"
-                                                                className="btn btn-outline-secondary me-2 btn-sm"
+                                                                className="btn btn-outline-secondary btn-sm"
+                                                                onClick={() => handleStopShow(section.section_device_id)}
                                                             >
-                                                                Manual
-                                                            </button>
-                                                        </OverlayTrigger>
+                                                                Stop
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
                                         ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-
-                    <div className="col-12 col-sm-6 mt-3 mt-sm-0">
-                        <div className="w-100 borderring ">
-                            <div className='d-flex align-items-center justify-content-between'>
-                                <h6 className='text-secondary' style={{ fontSize: '0.875rem' }}>Section Chart</h6>
-                                <h6
-                                    className='text-secondary'
-                                    style={{ fontSize: '0.875rem', cursor: 'pointer' }}
-                                    onClick={handleShow}
-                                >
-                                    More Charts
-                                </h6>
-                            </div>
-                            <div className="chart-container">
-                                <Bar data={columnChartData} />
-                            </div>
+                </div>
+                <div className="col-12 col-sm-6 ">
+                    <div className="w-100 borderring">
+                    <h6 className="text-secondary p-1" style={{ fontSize: '14px' }}>Sections chart</h6>
+                        <div className="chart-container">
+                            <Bar 
+                                data={columnChartData}
+                                options={{
+                                    scales: {
+                                        x: {
+                                            beginAtZero: true
+                                        },
+                                        y: {
+                                            beginAtZero: true
+                                        }
+                                    }
+                                }}
+                            />
                         </div>
                     </div>
                 </div>
             </div>
-
-            <Modal show={showModal} onHide={handleClose} size="lg">
+    
+            <Modal show={showModal} onHide={handleClose}>
                 <Modal.Header closeButton>
-                    <Modal.Title>Moisture Charts</Modal.Title>
+                    <Modal.Title>Manual Mode</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <div className="row p-2">
-                        <div className="col-lg-4 col-sm-6 chart-container">
-                            <h6 className="text-center">Bar Chart</h6>
-                            <Bar data={chartData} />
-                        </div>
-                        <div className="col-lg-4 col-sm-6 chart-container">
-                            <h6 className="text-center">Line Chart</h6>
-                            <Line data={chartData} />
-                        </div>
-                        <div className="col-lg-4 col-sm-6 chart-container">
-                            <h6 className="text-center">Radar Chart</h6>
-                            <Radar data={chartData} />
-                        </div>
-                        <div className="col-lg-4 col-sm-6 chart-container">
-                            <h6 className="text-center">Doughnut Chart</h6>
-                            <Doughnut data={chartData} />
-                        </div>
-                        <div className="col-lg-4 col-sm-6 chart-container">
-                            <h6 className="text-center">Pie Chart</h6>
-                            <Pie data={chartData} />
-                        </div>
-                        <div className="col-lg-4 col-sm-6 chart-container">
-                            <h6 className="text-center">Polar Area Chart</h6>
-                            <PolarArea data={chartData} />
-                        </div>
-                    </div>
+                    <Form onSubmit={handleSaveChanges}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>Enter duration (minutes)</Form.Label>
+                            <Form.Control
+                                type="number"
+                                placeholder="Enter duration"
+                                value={inputDuration}
+                                onChange={handleInputChange}
+                            />
+                        </Form.Group>
+                        <Button
+                            variant="outline-secondary"
+                            type="button"
+                            onClick={handleStartClick}
+                            disabled={!inputDuration}
+                        >
+                            Start
+                        </Button>
+                        <Button
+                            variant="outline-secondary"
+                            type="submit"
+                            disabled={!isStarted}
+                        >
+                            Save Changes
+                        </Button>
+                    </Form>
                 </Modal.Body>
             </Modal>
-
-
+    
+            <Modal show={showStopModal} onHide={handleStopClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Confirm Stop</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    Are you sure you want to stop this section?
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleStopClose}>
+                        Cancel
+                    </Button>
+                    <Button variant="primary" onClick={handleStopClick}>
+                        Confirm
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+    
+            <Modal show={showAutoModal} onHide={handleAutoClose}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Auto Mode</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    Do you want to enable auto mode for this section?
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={handleAutoClose}>No</Button>
+                    <Button variant="primary" onClick={handleAutoConfirm}>Yes</Button>
+                </Modal.Footer>
+            </Modal>
         </div>
     );
+    
 };
 
 export default Sections;

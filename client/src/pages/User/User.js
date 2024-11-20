@@ -55,6 +55,9 @@ const User = () => {
   const farmer_detail = rec;
   
 
+  // console.log(farmer_detail);
+  
+
   if (loading) {
     return (
       <main>
@@ -143,10 +146,10 @@ const User = () => {
                     <FieldControl collected_data={farm_details} farmer_details={farmer_detail} />
                   </div>
                   <div className="col-12">
-                    <MapContainer collected_data={farm_details} />
+                    <MapContainer collected_data={farm_details}  farmer_details={farmer_detail} />
                   </div>
                   <div className="col-12 my-3">
-                    <Sections collected_data={farm_details} />
+                    <Sections collected_data={farm_details} farmer_details={farmer_detail} />
                   </div>
                   <div className="col-12">
                     <LogsGenerator data={farm_details} />

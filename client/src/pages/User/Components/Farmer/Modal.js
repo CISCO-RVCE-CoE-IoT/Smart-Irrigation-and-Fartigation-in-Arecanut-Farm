@@ -5,20 +5,15 @@ import 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
 
 const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
-  // Ensure chartData is always an object and chartData.labels and chartData.values are valid arrays
-  const { labels = [], values = [] } = chartData;
+  const { labels = [], datasets = [] } = chartData;
 
   const data = {
-    labels: labels, // Fallback to empty array
-    datasets: [
-      {
-        label: chartType === 'timeline' ? 'Valve Status' : 'Line Chart Data',
-        data: values, // Fallback to empty array
-        fill: false,
-        backgroundColor: 'rgba(255, 0, 0, 1)', // Red color for "on" status
-        borderColor: 'rgba(255, 0, 0, 0.2)', // Light red border color
-      },
-    ],
+    labels,
+    datasets: datasets.map((dataset, index) => ({
+      ...dataset,
+      borderColor: `rgba(${index * 50}, ${150 - index * 30}, ${200 - index * 20}, 1)`,
+      backgroundColor: `rgba(${index * 50}, ${150 - index * 30}, ${200 - index * 20}, 0.2)`,
+    })),
   };
 
   const options = {
@@ -76,40 +71,38 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
       dataTable.addColumn({ type: 'date', id: 'Start' });
       dataTable.addColumn({ type: 'date', id: 'End' });
 
-      if (!Array.isArray(labels) || !Array.isArray(values)) {
+      if (!Array.isArray(labels) || !Array.isArray(datasets[0].data)) {
         console.error("Labels or values are not arrays.");
         return;
       }
 
-      if (labels.length === 0 || values.length === 0) {
+      if (labels.length === 0 || datasets[0].data.length === 0) {
         console.error("Labels or values arrays are empty.");
         return;
       }
 
-      // Ensure every label is a valid date and every value is a valid status
       const rows = labels.map((label, index) => {
-        if (!label || !values[index]) {
-            console.error(`Missing value in row #${index}.`);
-            return null; // Skip this row if status or timestamp is missing
+        if (!label || !datasets[0].data[index]) {
+          console.error(`Missing value in row #${index}.`);
+          return null;
         }
 
         const startTime = new Date(label);
-        const endTime = index + 1 < labels.length ? new Date(labels[index + 1]) : new Date(); // Use current date if no next time
-        const status = values[index];
+        const endTime = index + 1 < labels.length ? new Date(labels[index + 1]) : new Date();
+        const status = datasets[0].data[index];
 
         if (isNaN(startTime.getTime()) || (endTime && isNaN(endTime.getTime()))) {
-            console.error(`Invalid date at row #${index}: start(${startTime}) or end(${endTime}) is not a valid date.`);
-            return null; // Skip this row
+          console.error(`Invalid date at row #${index}: start(${startTime}) or end(${endTime}) is not a valid date.`);
+          return null;
         }
 
-        // Fix invalid order of dates
         if (endTime && startTime >= endTime) {
-            console.warn(`Correcting invalid data at row #${index}: start(${startTime}) > end(${endTime}).`);
-            endTime.setTime(startTime.getTime() + 60000); // Add 1 minute to end time
+          console.warn(`Correcting invalid data at row #${index}: start(${startTime}) > end(${endTime}).`);
+          endTime.setTime(startTime.getTime() + 60000); // Add 1 minute to end time
         }
 
         return ['Valve', status.trim(), startTime, endTime];
-      }).filter(row => row !== null); // Filter out invalid rows
+      }).filter(row => row !== null);
 
       if (rows.length === 0) {
         console.error("No valid data rows for the timeline chart.");
@@ -120,7 +113,7 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
 
       const options = {
         timeline: { showRowLabels: false },
-        colors: ['#FF0000'], // Set the color for the timeline events to red
+        colors: ['#FF0000'],
         avoidOverlappingGridLines: false,
       };
 
@@ -133,7 +126,7 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
         script.remove();
       }
     };
-  }, [show, chartType, labels, values]);
+  }, [show, chartType, labels, datasets]);
 
   return (
     <BootstrapModal
@@ -151,7 +144,7 @@ const Modal = ({ show, handleClose, chartData = {}, chartType }) => {
           <div id="google-timeline" style={{ width: '100%', height: '400px' }}></div>
         ) : (
           <div style={{ width: '100%', height: '400px' }}>
-            {labels.length > 0 && values.length > 0 ? (
+            {labels.length > 0 && datasets.length > 0 ? (
               <Line data={data} options={options} />
             ) : (
               <p>No data available</p>
