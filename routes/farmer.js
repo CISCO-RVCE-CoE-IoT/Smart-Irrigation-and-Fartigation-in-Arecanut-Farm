@@ -237,14 +237,14 @@ router.post('/farm/valve/:valve_id', async (req, res) => {
 router.post('/farm/all_valve/:farm_id', async (req, res) => {
     try {
         const { farm_id } = req.params;
-        const { mode, status, farmer_id, timer=0 } = req.body;
+        const { mode, status, farmer_id, timer = 0 } = req.body;
 
         // Validate received data
         if (!mode || !farmer_id) {
             return res.status(400).send({ error: 'Insufficient data' });
         }
 
-        let insertData = [];  
+        let insertData = [];
 
         // Query to fetch valve data for the farm
         const valveSelectQuery = `
@@ -252,7 +252,7 @@ router.post('/farm/all_valve/:farm_id', async (req, res) => {
             FROM public.lst_valve_avg_moisture
             WHERE farm_id = $1;
         `;
-        
+
         const valveData = await pool.query(valveSelectQuery, [farm_id]);
 
         if (valveData.rowCount === 0) {
