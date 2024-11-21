@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Admin from './pages/Admin';
 import User from './pages/User/User';
 import LoginSignup from './pages/LoginSignup';
+import AdminFarmer from './pages/Admin/AdminFarmer';
 
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
       <Route path='/admin' element={<Admin />}/>
       <Route path='/farmer/:id' element={<User />}/>
       <Route path='/login' element={<LoginSignup/>}/>
+      <Route path='/admin/farmer' element={<AdminFarmer/>}/>
     </Routes>
     </div>
   );

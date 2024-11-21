@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+/* @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap'); */
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Poppins", sans-serif;
+    /* font-family: "Poppins", sans-serif; */
     text-decoration: none;
     list-style: none;
 }
@@ -266,4 +266,65 @@ form {
     .toggle-panel h1 {
         font-size: 30px;
     }
+}
+
+
+
+
+
+
+
+
+
+
+@import url('https://fonts.googleapis.com/css2?family=Mulish:wght@200..1000&display=swap');
+
+* {
+    font-family: "Mulish", sans-serif;
+}
+
+
+:root {
+    --textcolor: rgba(0, 0, 0, 0.712);
+    --shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+    --spantext: 2rem;
+}
+
+.spancolor {
+    color: var(--textcolor);
+    font-size: var(--spantext);
+}
+
+.borderring {
+    border-radius: 12px;
+    padding: 1rem;
+    box-shadow: var(--shadow);
+    background-color: white;
+}
+
+.text-second {
+    color: rgba(29, 29, 29, 0.87);
+}
+
+
+
+
+
+
+
+
+
+.sticky-header th {
+    position: sticky;
+    top: 0;
+    background-color: white; /* Adjust according to your design */
+    z-index: 1; /* Ensure it stays on top of the table rows */
+}
+
+
+i{
+    font-size: 0.9rem;
+    margin-left: 4px;
+    color: grey;
+    cursor: pointer;
 }
