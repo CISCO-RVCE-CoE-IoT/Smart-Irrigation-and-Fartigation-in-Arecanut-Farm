@@ -40,52 +40,112 @@ router.post('/', async (req, res) => {
     }
 });
 
-router.post('/farmer', async (req, res) => {
+router.patch('/farmer', async (req, res) => {
+    try {
+        const { admin_id, farmer_id, update_key, update_val } = req.body;
+
+        if (!admin_id || !farmer_id || !update_key || !update_val) {
+            return res.status(400).send({ error: "All fields are required" });
+        }
+        const allowedKeys = ["farmer_fname", "farmer_lname", "farmer_password", "farmer_phone", "farmer_email"];
+
+        if (!allowedKeys.includes(update_key)) {
+            return res.status(400).send({ error: "Invalid update key" });
+        }
+
+        const updated_data = await pool.query(`
+            UPDATE farmer 
+            SET ${update_key} = $1 
+            WHERE farmer_id = $2 AND admin_id = $3
+            RETURNING farmer_id, ${update_key}`, [update_val, farmer_id, admin_id]);
+
+        if (updated_data.rowCount === 0) {
+            return res.status(404).send({ error: "No farmer found for provided Id" });
+        }
+
+        return res.status(200).send({ updated_data: updated_data.rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "An error occurred while updating farm data" });
+    }
+});
+
+router.post('/farmer/farm', async (req, res) => {
     try {
         const { admin_id, farmer_id } = req.body;
 
-        const [farmer_data, farm_data] = await Promise.all([
-            pool.query(`
-            SELECT 
-                farmer_id, 
-                farmer_fname, 
-                farmer_lname, 
-                farmer_password, 
-                farmer_phone, 
-                farmer_email, 
-                join_date,
-                (SELECT COUNT(*) FROM farm WHERE farmer_id = $1) AS total_farms
-            FROM farmer
-            WHERE farmer_id = $1 AND admin_id = $2`, [farmer_id, admin_id]),
-
-            pool.query(`
+        const  farm_data = await  pool.query(`
             SELECT fr.* 
             FROM farm fr
             JOIN farmer f ON fr.farmer_id = f.farmer_id
             WHERE fr.farmer_id = $1 AND f.admin_id = $2;
-            `, [farmer_id, admin_id])
-        ]);
-        if (farmer_data.rowCount === 0) {
-            return res.status(404).send({ error: "No former found for provided id" });
+            `, [farmer_id, admin_id]);
+
+        if (farm_data.rowCount === 0) {
+            return res.status(404).send({ error: "No form found for provided id" });
         }
 
-        return res.status(200).send({ farmer_data: farmer_data.rows[0], farm_data: farm_data.rows });
+        return res.status(200).send({ farm_data: farm_data.rows });
     } catch (error) {
         console.error(error);
         res.status(500).send({ error: "An error occurred while fetching farm data" });
     }
 });
 
-router.post('/farmer/farm', async (req, res) => {
+router.patch('/farmer/farm', async (req, res) => {
+    try {
+        const { admin_id, farmer_id, farm_id, update_key, update_val } = req.body;
+
+        if (!admin_id || !farmer_id || !farm_id || !update_key || !update_val) {
+            return res.status(400).send({ error: "All fields are required" });
+        }
+
+        const allowedKeys = ["farm_name", "farm_location_cordinates", "farm_size", "auto_on_threshold", "auto_off_threshold", "farm_key"];
+
+        if (!allowedKeys.includes(update_key)) {
+            return res.status(400).send({ error: "Invalid update key" });
+        }
+
+        const updated_data = await pool.query(`
+            UPDATE farm 
+            SET ${update_key} = $4 
+            WHERE farm_id = $1 
+            AND EXISTS (
+                SELECT 1
+                FROM farm fr
+                JOIN farmer f ON fr.farmer_id = f.farmer_id
+                WHERE f.farmer_id = $2 AND f.admin_id = $3
+            )
+            RETURNING farm_id, ${update_key}`, [farm_id, farmer_id, admin_id, update_val]);
+
+        if (updated_data.rowCount === 0) {
+            return res.status(404).send({ error: "No farm found for provided Id or access unauthorized" });
+        }
+
+        return res.status(200).send({ updated_data: updated_data.rows });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: "An error occurred while updating farm data" });
+    }
+});
+
+
+router.post('/farmer/farm/section', async (req, res) => {
     try {
         const { admin_id, farmer_id, farm_id } = req.body;
 
+        if (!admin_id || !farmer_id || !farm_id) {
+            return res.status(400).send({ error: "All fields are required" });
+        }
+
         const section_data = await pool.query(`
             SELECT 
+                farmer_id,
                 farm_id,
                 section_id,
                 section_name,
-                creation_date 
+                creation_date,
+                total_section_devices 
             FROM farmer_farm_with_sections
             WHERE admin_id = $1 AND farmer_id = $2 AND farm_id = $3`, [admin_id, farmer_id, farm_id]);
 
@@ -101,15 +161,19 @@ router.post('/farmer/farm', async (req, res) => {
     }
 });
 
-router.post('/farmer/farm/section', async (req, res) => {
+router.post('/farmer/farm/section/devices', async (req, res) => {
     try {
-        const { admin_id, farmer_id, section_id } = req.body;
+        const { admin_id, farmer_id, farm_id, section_id } = req.body;
+
+        if (!admin_id || !farmer_id || !farm_id || !section_id) {
+            return res.status(400).send({ error: "All fields are required" });
+        }
 
         const section_devices_data = await pool.query(`
             SELECT 
-                farm_id, section_id, section_device_id,  device_name, device_location, installation_date
+                farmer_id, farm_id, section_id, section_device_id,  device_name, device_location, installation_date
             FROM farmer_farm_with_all_section_devices
-            WHERE admin_id = $1 AND farmer_id = $2 AND section_id= $3`, [admin_id, farmer_id, section_id]);
+            WHERE admin_id = $1 AND farmer_id = $2 AND farm_id = $3 AND section_id= $4`, [admin_id, farmer_id, farm_id, section_id]);
 
         if (section_devices_data.rowCount === 0) {
             return res.status(404).send({ error: "No section devices found for provided id" });
@@ -170,10 +234,9 @@ router.put('/farmer/:admin_id', async (req, res) => {
     }
 });
 
-router.delete('/farmer/:admin_id', async (req, res) => {
+router.delete('/farmer/not_-_now', async (req, res) => {
     try {
-        const { admin_id } = req.params;
-        const { farmer_id } = req.body;
+        const { admin_id,farmer_id } = req.body;
 
         if (!farmer_id) {
             return res.status(400).send({ error: "Farmer ID is required" });
