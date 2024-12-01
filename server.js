@@ -1,14 +1,13 @@
 const express = require('express')
 const pool = require('./db')
-const port = 3001
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
+const port = 3001  // Ensure this is set to 3001
 
 const app = express()
 app.use(express.json())
 app.use(bodyParser.json());
-
 app.use(cors());
 
 // home page api
@@ -45,4 +44,4 @@ app.use('/farmer', farmer_route);
 const iot_route = require('./routes/iot');
 app.use('/iot', iot_route);
 
-app.listen(port, () => console.log(`server started on port: ${port}`)) 
+app.listen(port, () => console.log(`server started on port: ${port}`))
