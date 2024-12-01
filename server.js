@@ -1,6 +1,6 @@
 const express = require('express')
 const pool = require('./db')
-const port = 3000
+const port = 3001
 const cors = require('cors');
 const bodyParser = require('body-parser');
 
