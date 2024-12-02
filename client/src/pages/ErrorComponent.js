@@ -16,12 +16,9 @@ function ErrorComponent() {
         <div className="error-page">
             <div className='mb-5'>
 
-          <h1>Server 
-            Error
+          <h1>Server Unexpected Error <b>:(</b>
           </h1>
-          <h2>
-            Unexpected Error <b>:(</b>
-          </h2>
+
             </div>
           <div className="gears">
             <div className="gear one">
