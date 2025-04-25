@@ -3,8 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - frontend-and-server
-
+      - frontend
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
